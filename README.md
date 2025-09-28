@@ -2,9 +2,6 @@
 
 Aplicativo desktop para **importar 2× XML + 1× TXT**, **cruzar os dados**, calcular **distâncias (Haversine)** e **gerar um CSV consolidado** para uso do time de negócios.
 
-**Fornecedor:** PEREIRA E SOUZA TECNOLOGIA LTDA — CNPJ 60.478.899/0001-84  
-**Contato:** adauto.pstech@gmail.com · (67) 99237-0905
-
 ---
 
 ## Sumário
