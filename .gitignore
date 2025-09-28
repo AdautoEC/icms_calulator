@@ -1,41 +1,66 @@
-# Prerequisites
-*.d
+# ===== .NET / Visual Studio =====
+# Build artifacts
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+artifacts/
+publish/
+*.Publish.xml
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# Precompiled Headers
-*.gch
-*.pch
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+_ReSharper*/
 
-# Linker files
-*.ilk
+# VS Code
+.vscode/
+.history/
 
-# Debugger Files
-*.pdb
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+*.nuspec
+# (Se usar PackageReference, não existe /packages, mas manter não custa)
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
+# Testes
+TestResults/
+*.trx
+*.coverage*
+.vsmdi
 
-# Fortran module files
-*.mod
-*.smod
+# Sistema Operacional
+.DS_Store
+Thumbs.db
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
+# Segredos / certificados / configs locais
+appsettings.*.local.json
+*.secrets.json
+secrets/
+*.pfx
+*.key
+*.cer
 
-# Executables
-*.exe
-*.out
-*.app
+# Dados locais e caches (mantemos /samples versionado)
+data/
+cache/
+*.sqlite*
+*.db
+*.mdb
+*.tmp
+*.temp
 
-# debug information files
-*.dwo
+# ClickOnce
+*.deploy
+
+# WPF/WinForms gerados (ocasional)
+Generated Files/
