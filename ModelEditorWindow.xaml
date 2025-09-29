@@ -1,0 +1,25 @@
+<Window x:Class="CsvIntegratorApp.ModelEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Editor de Modelos" Height="520" Width="880" WindowStartupLocation="CenterOwner">
+  <Grid Margin="16">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,8">
+      <Button Content="Importar Modelo (.json)" Margin="0,0,8,0" Click="ImportModel_Click"/>
+      <Button Content="Salvar Modelo (.json)" Margin="0,0,8,0" Click="SaveModel_Click"/>
+      <TextBlock x:Name="EditorStatus" Margin="16,0,0,0" VerticalAlignment="Center"/>
+    </StackPanel>
+
+        <DataGrid x:Name="EditorGrid" AutoGenerateColumns="True" Grid.Row="1" IsReadOnly="False" CellEditEnding="EditorGrid_CellEditEnding"/>
+
+    <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right">
+      <Button Content="Adicionar Linha" Margin="0,0,8,0" Click="AddRow_Click"/>
+      <Button Content="Remover Selecionada" Click="RemoveRow_Click"/>
+    </StackPanel>
+  </Grid>
+</Window>
