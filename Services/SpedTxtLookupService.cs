@@ -10,8 +10,8 @@ namespace CsvIntegratorApp.Services
         // chNFe -> COD_PART
         private static readonly Dictionary<string, string> _mapChaveParaPart = new(StringComparer.OrdinalIgnoreCase);
 
-        // COD_PART -> (COD_MUN, END opcional, NOME opcional)
-        private static readonly Dictionary<string, (int? codMun, string? end, string? nome)> _mapPartes =
+        // COD_PART -> (COD_MUN, street, number, neighborhood, NOME)
+        private static readonly Dictionary<string, (int? codMun, string? street, string? number, string? neighborhood, string? nome)> _mapPartes =
             new(StringComparer.OrdinalIgnoreCase);
 
         private static bool _loaded;
@@ -51,26 +51,26 @@ namespace CsvIntegratorApp.Services
                 {
                     // |0150|cod_part|nome|cod_pais|cnpj|cpf|ie|cod_mun|suframa|end|num|compl|bairro|
                     string? codPart = cols.Length > 2 ? cols[2] : null;
+                    if (string.IsNullOrWhiteSpace(codPart)) continue;
 
                     int? codMun = null;
                     if (cols.Length > 8 && int.TryParse(cols[8], out var cm)) codMun = cm;
 
-                    string? end = cols.Length > 10 ? cols[10] : null;
                     string? nome = cols.Length > 3 ? cols[3] : null;
+                    string? street = cols.Length > 10 ? cols[10] : null;
+                    string? number = cols.Length > 11 ? cols[11] : null;
+                    string? neighborhood = cols.Length > 13 ? cols[13] : null;
 
-                    if (!string.IsNullOrWhiteSpace(codPart))
-                    {
-                        _mapPartes[codPart.Trim()] = (codMun, end, nome);
-                    }
+                    _mapPartes[codPart.Trim()] = (codMun, street, number, neighborhood, nome);
                 }
             }
 
             _loaded = true;
         }
 
-        public static bool TryGetDestinoPorChave(string? chNFe, out (string? cidade, string? uf) dest)
+        public static bool TryGetAddressInfoPorChave(string? chNFe, out (string? street, string? number, string? neighborhood, string? uf) addressInfo)
         {
-            dest = default;
+            addressInfo = default;
             if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
 
             var ch = Clean(chNFe);
@@ -79,10 +79,8 @@ namespace CsvIntegratorApp.Services
             if (_mapPartes.TryGetValue(codPart, out var info))
             {
                 var uf = UfFromCodMun(info.codMun);
-                // cidade normalmente exige tabela IBGE → deixamos nula;
-                // o merge combinará "cidade da NFe" + "UF do SPED" se precisar.
-                dest = (null, uf);
-                return uf != null;
+                addressInfo = (info.street, info.number, info.neighborhood, uf);
+                return true;
             }
 
             return false;

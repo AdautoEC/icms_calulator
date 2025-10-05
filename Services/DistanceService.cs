@@ -16,6 +16,7 @@ namespace CsvIntegratorApp.Services
         public List<double> LegsKm { get; init; } = new();
         public string? Used { get; init; }         // "OSRM" ou "HAVERSINE"
         public string? Error { get; init; }
+        public List<(double lat, double lon)> Coordinates { get; init; } = new();
     }
 
     public static class DistanceService
@@ -110,7 +111,8 @@ namespace CsvIntegratorApp.Services
                     TotalKm = totalKm,
                     LegsKm = legsKm,
                     Used = "OSRM",
-                    Error = null
+                    Error = null,
+                    Coordinates = coords
                 };
             }
             catch
@@ -157,7 +159,7 @@ namespace CsvIntegratorApp.Services
             foreach (var p in list)
             {
                 var c = await GeocodeAsync(p);
-                if (c is null) return new RouteResult { TotalKm = null, Used = "HAVERSINE", Error = "Falha ao geocodificar" };
+                if (c is null) return new RouteResult { TotalKm = null, Used = "HAVERSINE", Error = "Falha ao geocodificar", Coordinates = new() };
                 coords.Add(c.Value);
             }
 
@@ -172,7 +174,8 @@ namespace CsvIntegratorApp.Services
                 TotalKm = Math.Round(legs.Sum(), 1),
                 LegsKm = legs,
                 Used = "HAVERSINE",
-                Error = "OSRM indisponível; usando linha reta"
+                Error = "OSRM indisponível; usando linha reta",
+                Coordinates = coords
             };
         }
 

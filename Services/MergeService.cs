@@ -22,89 +22,126 @@ namespace CsvIntegratorApp.Services
             MdfeParsed mdfe,
             bool somarRetornoParaOrigem = true)
         {
-            var rows = new List<ModelRow>();
+            CalculationLogService.Clear();
+            CalculationLogService.Log("Iniciando processo de merge e cálculo de rota.");
+
             var h = mdfe.Header;
 
             // Origem textual (Cidade, UF) só do MDF-e
-            var origemCidade = h.OrigemCidade ?? h.EmitCidade;  // ITAPORA
-            var origemUF = h.UFIni ?? h.EmitUF;              // MS
+            var origemCidade = h.OrigemCidade ?? h.EmitCidade;
+            var origemUF = h.UFIni ?? h.EmitUF;
             var origemStr = (!string.IsNullOrWhiteSpace(origemCidade) && !string.IsNullOrWhiteSpace(origemUF))
                                ? $"{ToTitle(origemCidade)}, {origemUF}"
                                : h.UFIni ?? h.UFFim;
+
+            if (string.IsNullOrWhiteSpace(origemStr))
+            {
+                CalculationLogService.Log("ERRO: Origem da viagem não pôde ser determinada a partir do MDF-e.");
+                CalculationLogService.Save();
+                return new List<ModelRow>();
+            }
+            CalculationLogService.Log($"Origem definida como: {origemStr}");
 
             // Índice NFe por chave (para enriquecer litros/valores/placa)
             var porChave = (nfeItems ?? new List<NfeParsedItem>())
                 .GroupBy(x => x.ChaveNFe ?? "", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            // Se o MDF-e não trouxe mapeamentos por chNFe, ainda assim criamos uma linha com o 1º destino
-            if (mdfe.DestinosPorChave.Count == 0)
-            {
-                var r = BaseFromMdfe(h);
-                // destino = primeiro infMunDescarga (se houver), senão UFFim
-                var (destCidadeFallback, destUfFallback) = PrimeiroDestinoDoMdfe(mdfe) ?? (null, h.UFFim);
-                var destinoStr = MontaCidadeUf(destCidadeFallback, destUfFallback);
+            var allChaves = mdfe.DestinosPorChave.Keys.ToList();
+            var destinationPoints = new List<string>();
 
-                // Opcional: se vier ao menos uma NFe (combustível), use para litros/valores
-                if (porChave.Count > 0)
-                {
-                    var n = porChave.Values.First();
-                    EnriquecerComNfe(r, n);
-                }
-
-                // Alíquota/Crédito
-                r.AliquotaCredito = GetAliquota(r.UFEmit, r.UFDest, h.UFIni, h.UFFim);
-                r.ValorCredito = CalcCredito(r.ValorTotalCombustivel, r.AliquotaCredito);
-
-                // Distância / Roteiro
-                await PreencherDistanciaERoteiroAsync(r, origemStr, destinoStr, somarRetornoParaOrigem);
-
-                rows.Add(r);
-                return rows;
-            }
-
-            // Caminho principal: uma linha por chNFe do MDF-e (destino certo)
+            CalculationLogService.Log("Coletando pontos de destino...");
+            // Coleta todos os pontos de destino únicos
             foreach (var kv in mdfe.DestinosPorChave)
             {
                 var chave = kv.Key;
                 var (destCidadeMdfe, destUfMdfe, _) = kv.Value;
 
-                // Destino SEMPRE do MDF-e
-                var destinoStr = MontaCidadeUf(destCidadeMdfe, destUfMdfe) ?? h.UFFim;
-
-                var r = BaseFromMdfe(h);
-                r.ChaveNFe = chave;
-                r.UFDest = destUfMdfe;
-                r.CidadeDest = destCidadeMdfe;
-
-                // Enriquecer com a NF-e somente em litros/valores/placa
-                if (!string.IsNullOrWhiteSpace(chave) && porChave.TryGetValue(chave, out var n))
+                string destinoStr;
+                if (SpedTxtLookupService.TryGetAddressInfoPorChave(chave, out var addrInfo))
                 {
-                    EnriquecerComNfe(r, n);
+                    var addressParts = new[] { addrInfo.street, addrInfo.number, destCidadeMdfe, addrInfo.uf ?? destUfMdfe };
+                    destinoStr = string.Join(", ", addressParts.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    CalculationLogService.Log($"Destino para NFe {chave} encontrado no SPED: {destinoStr}");
                 }
                 else
                 {
-                    // Tenta enriquecer por "placa" e proximidade de data (caso a nota de combustível não esteja no MDF-e)
-                    var nGuess = TentarMatchPorPlacaEData(porChave.Values, r.Placa, r.Data);
-                    if (nGuess != null)
-                        EnriquecerComNfe(r, nGuess);
+                    destinoStr = MontaCidadeUf(destCidadeMdfe, destUfMdfe) ?? h.UFFim ?? "";
+                    CalculationLogService.Log($"Destino para NFe {chave} usando dados do MDF-e: {destinoStr}");
                 }
-
-                // Nota de aquisição = própria NF-e (se houver)
-                r.NFeAquisicaoNumero = r.NFeNumero;
-                r.DataAquisicao = r.DataEmissao;
-
-                // Alíquota/Crédito
-                r.AliquotaCredito = GetAliquota(r.UFEmit, r.UFDest, h.UFIni, h.UFFim);
-                r.ValorCredito = CalcCredito(r.ValorTotalCombustivel, r.AliquotaCredito);
-
-                // Distância / Roteiro: MDF-e only
-                await PreencherDistanciaERoteiroAsync(r, origemStr, destinoStr, somarRetornoParaOrigem);
-
-                rows.Add(r);
+                destinationPoints.Add(destinoStr);
             }
 
-            return rows;
+            // Se não houver destinos no MDF-e, usa o fallback
+            if (destinationPoints.Count == 0)
+            {
+                var (destCidadeFallback, destUfFallback) = PrimeiroDestinoDoMdfe(mdfe) ?? (null, h.UFFim);
+                var destinoStr = MontaCidadeUf(destCidadeFallback, destUfFallback);
+                if (!string.IsNullOrWhiteSpace(destinoStr))
+                {
+                    destinationPoints.Add(destinoStr);
+                    CalculationLogService.Log($"Nenhum destino no MDF-e. Usando fallback: {destinoStr}");
+                }
+            }
+
+            var finalRow = BaseFromMdfe(h);
+
+            // Agrega dados de todas as NF-e de combustível associadas
+            double totalLitros = 0;
+            double totalValorCombustivel = 0;
+            var combustivelNFe = porChave.Values.Where(n => n.IsCombustivel).ToList();
+            
+            if (combustivelNFe.Any())
+            {
+                var nfePrincipal = TentarMatchPorPlacaEData(combustivelNFe, h.Placa, h.DhIniViagem ?? h.DhEmi) ?? combustivelNFe.First();
+                EnriquecerComNfe(finalRow, nfePrincipal);
+                
+                totalLitros = combustivelNFe.Sum(n => n.Quantidade ?? 0);
+                totalValorCombustivel = combustivelNFe.Sum(n => n.ValorTotal ?? 0);
+
+                finalRow.QuantidadeLitros = totalLitros > 0 ? totalLitros : null;
+                finalRow.ValorTotalCombustivel = totalValorCombustivel > 0 ? totalValorCombustivel : null;
+                CalculationLogService.Log($"Encontradas {combustivelNFe.Count} NF-e de combustível. Total: {totalLitros} L, R$ {totalValorCombustivel}.");
+            }
+
+            // Constrói a rota completa
+            var waypoints = new List<string> { origemStr };
+            waypoints.AddRange(destinationPoints.Distinct(StringComparer.OrdinalIgnoreCase));
+
+            if (somarRetornoParaOrigem && waypoints.Count > 1)
+            {
+                waypoints.Add(origemStr);
+            }
+
+            CalculationLogService.Log($"Enviando {waypoints.Count} pontos para cálculo de rota: {string.Join(" | ", waypoints)}");
+            var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, closeLoop: false);
+            CalculationLogService.Log($"Resultado da API: Distancia={routeResult.TotalKm}km, Usado='{routeResult.Used}', Erro='{routeResult.Error}'");
+
+            RouteLogService.GenerateRouteMap(routeResult.Coordinates);
+
+            if (routeResult.TotalKm.HasValue && routeResult.Used == "OSRM")
+            {
+                finalRow.DistanciaPercorridaKm = routeResult.TotalKm;
+                finalRow.Roteiro = "Rota Calculada com Sucesso";
+                CalculationLogService.Log("Rota calculada com sucesso.");
+            }
+            else
+            {
+                finalRow.DistanciaPercorridaKm = null;
+                finalRow.Roteiro = $"Falha no cálculo da rota: {routeResult.Error}";
+                CalculationLogService.Log($"Falha no cálculo da rota. Motivo: {routeResult.Error}");
+            }
+
+            finalRow.ChaveNFe = string.Join(", ", allChaves.Distinct());
+            finalRow.UFDest = h.UFFim;
+            finalRow.CidadeDest = waypoints.LastOrDefault()?.Split(',')[0].Trim();
+
+            finalRow.AliquotaCredito = GetAliquota(finalRow.UFEmit, finalRow.UFDest, h.UFIni, h.UFFim);
+            finalRow.ValorCredito = CalcCredito(finalRow.ValorTotalCombustivel, finalRow.AliquotaCredito);
+
+            CalculationLogService.Log("Processo finalizado.");
+            CalculationLogService.Save();
+            return new List<ModelRow> { finalRow };
         }
 
         // =========================================================
@@ -113,11 +150,15 @@ namespace CsvIntegratorApp.Services
 
         private static ModelRow BaseFromMdfe(MdfeHeader h)
         {
+            // Tenta buscar o tipo do veículo no nosso "banco de dados" local primeiro
+            var tipoVeiculo = VehicleService.GetVehicleType(h.Placa, h.Renavam) 
+                              ?? MapTipo(h.TpRod, h.TpCar); // Fallback para o mapeamento padrão
+
             return new ModelRow
             {
                 // Veículo (MDF-e)
                 Modelo = null, // MDF-e não traz "modelo" textual
-                Tipo = MapTipo(h.TpRod, h.TpCar),
+                Tipo = tipoVeiculo,
                 Renavam = h.Renavam,
                 Placa = h.Placa,
 
@@ -164,35 +205,6 @@ namespace CsvIntegratorApp.Services
                          && x.DataEmissao.Value >= min && x.DataEmissao.Value <= max)
                 .OrderBy(x => Math.Abs((x.DataEmissao!.Value - dataRef.Value).TotalHours))
                 .FirstOrDefault();
-        }
-
-        private static async Task PreencherDistanciaERoteiroAsync(
-            ModelRow r,
-            string? origemStr,
-            string? destinoStr,
-            bool somarRetornoParaOrigem)
-        {
-            if (string.IsNullOrWhiteSpace(origemStr) || string.IsNullOrWhiteSpace(destinoStr))
-                return;
-
-            var origem = origemStr!;
-            var destino = destinoStr!;
-
-            // Evitar Itaporã->Itaporã por erro de fonte (TXT/NFe)
-            if (IsSamePlace(origem, destino))
-            {
-                // nesse caso não faz sentido somar retorno (seria 0)
-                somarRetornoParaOrigem = false;
-            }
-
-            var pontos = new List<string> { origem, destino };
-            if (somarRetornoParaOrigem)
-                pontos.Add(origem);
-
-            var route = await DistanceService.TryRouteLegsKmAsync(pontos, closeLoop: false);
-
-            r.DistanciaPercorridaKm = route.TotalKm;
-            r.Roteiro = string.Join(" / ", pontos.Select(p => p.ToUpper()));
         }
 
         /// <summary>

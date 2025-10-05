@@ -38,8 +38,9 @@
     <!-- Actions -->
     <StackPanel Grid.Row="4" Orientation="Vertical" Margin="0,10,0,10">
       <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-        <Button Content="Pré-preencher tabela" Width="180" Click="PreFill_Click" Margin="0,0,8,0"/>
+        <Button Content="Processar Arquivos e Calcular Rota" Width="240" Click="PreFill_Click" Margin="0,0,8,0"/>
         <Button Content="Abrir Editor (Modelos)" Width="180" Click="OpenEditor_Click"/>
+        <Button Content="Gerenciar Veículos" Width="180" Click="OpenVehicleEditor_Click" Margin="8,0,0,0"/>
         <TextBlock x:Name="StatusText" Margin="16,0,0,0" VerticalAlignment="Center"/>
       </StackPanel>
 
@@ -47,6 +48,8 @@
     </StackPanel>
 
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="ViewLogButton" Content="Ver Log de Cálculo" Width="140" Click="ViewLog_Click" IsEnabled="False" Margin="0,0,8,0"/>
+      <Button x:Name="ViewRouteButton" Content="Visualizar Rota" Width="140" Click="ViewRoute_Click" IsEnabled="False" Margin="0,0,8,0"/>
       <Button Content="Exportar CSV" Width="140" Click="ExportCsv_Click" />
     </StackPanel>
   </Grid>

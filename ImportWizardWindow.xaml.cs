@@ -1,18 +1,20 @@
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
 using CsvIntegratorApp.Models;
 using CsvIntegratorApp.Services;
+using CsvIntegratorApp.Services.Sped;
 
 namespace CsvIntegratorApp
 {
     public partial class ImportWizardWindow : Window
     {
-        private List<ModelRow> _rows = new();
+        private List<ModelRow> _currentRows = new();
 
         public ImportWizardWindow()
         {
@@ -47,42 +49,65 @@ namespace CsvIntegratorApp
                     return;
                 }
 
+                StatusText.Text = "Processando... aguarde.";
+                ViewRouteButton.IsEnabled = false;
+
+                if (System.IO.File.Exists(TxtPath.Text))
+                {
+                    SpedTxtLookupService.LoadTxt(TxtPath.Text);
+                }
+
                 var mdfe = ParserMDFe.Parse(MdfePath.Text);
 
                 List<NfeParsedItem>? nfeItems = null;
                 if (System.IO.File.Exists(NfePath.Text))
                 {
                     var parsed = ParserNFe.Parse(NfePath.Text);
-                    // Se quiser restringir a combustível:
-                    // parsed = parsed.Where(i => i.IsCombustivel).ToList();
                     nfeItems = parsed;
                 }
 
                 var merged = await MergeService.MergeAsync(nfeItems, mdfe, somarRetornoParaOrigem: true);
 
-                _rows = merged;
+                _currentRows = merged;
                 PreviewGrid.ItemsSource = null;
-                PreviewGrid.ItemsSource = _rows;
+                PreviewGrid.ItemsSource = _currentRows;
 
-                StatusText.Text = $"Pré-preenchido: {_rows.Count} linha(s).";
+                StatusText.Text = $"Pré-preenchido: {_currentRows.Count} linha(s).";
+
+                if (!string.IsNullOrEmpty(RouteLogService.LastGeneratedMapPath))
+                {
+                    ViewRouteButton.IsEnabled = true;
+                }
+                ViewLogButton.IsEnabled = true; // Sempre habilita o log
             }
             catch (System.Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                CalculationLogService.Log($"ERRO INESPERADO: {ex.Message}");
+                CalculationLogService.Save();
+                ViewLogButton.IsEnabled = true; // Habilita o log mesmo em caso de erro
             }
         }
 
         private void OpenEditor_Click(object sender, RoutedEventArgs e)
         {
-            var win = new ModelEditorWindow();
-            win.ShowDialog();
+            var editor = new ModelEditorWindow(_currentRows);
+            editor.Owner = this;
+            editor.ShowDialog();
+        }
+
+        private void OpenVehicleEditor_Click(object sender, RoutedEventArgs e)
+        {
+            var vehicleEditor = new VehicleEditorWindow();
+            vehicleEditor.Owner = this;
+            vehicleEditor.ShowDialog();
         }
 
         private void ExportCsv_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (_rows == null || _rows.Count == 0)
+                if (_currentRows == null || _currentRows.Count == 0)
                 {
                     MessageBox.Show(this, "Nada para exportar. Faça o pré-preenchimento primeiro.", "Aviso");
                     return;
@@ -109,7 +134,7 @@ namespace CsvIntegratorApp
                 "N° NF-e (Aquisição)","Data de Aquisição"
             }));
 
-                    foreach (var r in _rows)
+                    foreach (var r in _currentRows)
                     {
                         var campos = new[]
                         {
@@ -142,6 +167,43 @@ namespace CsvIntegratorApp
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ViewLog_Click(object sender, RoutedEventArgs e)
+        {
+            if (!File.Exists(CalculationLogService.LogFilePath))
+            {
+                MessageBox.Show("O arquivo de log não foi encontrado.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo(CalculationLogService.LogFilePath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Não foi possível abrir o arquivo de log: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ViewRoute_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(RouteLogService.LastGeneratedMapPath) || !File.Exists(RouteLogService.LastGeneratedMapPath))
+            {
+                MessageBox.Show("O arquivo do mapa de rota não foi encontrado ou não pôde ser gerado.", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                // Abre o arquivo HTML no navegador padrão
+                Process.Start(new ProcessStartInfo(RouteLogService.LastGeneratedMapPath) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Não foi possível abrir o mapa: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

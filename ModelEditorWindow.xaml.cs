@@ -15,12 +15,12 @@ namespace CsvIntegratorApp
     {
         private List<ModelRow> _rows = new();
 
-        public ModelEditorWindow()
+        public ModelEditorWindow(List<ModelRow> rowsToEdit)
         {
             InitializeComponent();
-            _rows = ModelService.LoadLocal();
+            _rows = rowsToEdit; // Usa a lista vinda da janela principal
             EditorGrid.ItemsSource = _rows;
-            EditorStatus.Text = $"Carregadas {_rows.Count} linha(s).";
+            EditorStatus.Text = $"Editando {_rows.Count} linha(s).";
         }
 
         private void ImportModel_Click(object sender, RoutedEventArgs e)
