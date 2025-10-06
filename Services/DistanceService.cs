@@ -1,12 +1,11 @@
-﻿// Services/DistanceService.cs
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using CsvIntegratorApp.Models.OpenRouteService;
+using CsvIntegratorApp.Services.ApiClients;
 
 namespace CsvIntegratorApp.Services
 {
@@ -14,171 +13,161 @@ namespace CsvIntegratorApp.Services
     {
         public double? TotalKm { get; init; }
         public List<double> LegsKm { get; init; } = new();
-        public string? Used { get; init; }         // "OSRM" ou "HAVERSINE"
+        public string? Used { get; init; }
         public string? Error { get; init; }
         public List<(double lat, double lon)> Coordinates { get; init; } = new();
     }
 
+    public struct GeoPoint
+    {
+        public double Lat { get; set; }
+        public double Lon { get; set; }
+    }
+
     public static class DistanceService
     {
-        static readonly HttpClient http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        private static OpenRouteServiceClient? _orsClient;
+        private static string? _apiKeyCache;
 
-        // cache bobo de geocodificação para não estourar Nominatim
-        static readonly Dictionary<string, (double lat, double lon)> _geoCache =
-            new(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Rota entre dois pontos "Cidade, UF" (com geocodificação) usando OSRM; fallback Haversine.
-        /// </summary>
-        public static async Task<double?> TryRouteKmAsync(string origemCidadeUf, string destinoCidadeUf)
+        private static string? GetApiKey()
         {
-            var res = await TryRouteLegsKmAsync(new[] { origemCidadeUf, destinoCidadeUf }, closeLoop: false);
-            return res.TotalKm;
+            if (_apiKeyCache != null) return _apiKeyCache;
+            try
+            {
+                var keyPath = "C:\\Users\\User\\Documents\\icms\\ors_api_key.txt";
+                if (File.Exists(keyPath))
+                {
+                    var key = File.ReadAllText(keyPath).Trim();
+                    if (!string.IsNullOrWhiteSpace(key) && key.Length > 40)
+                    {
+                        _apiKeyCache = key;
+                        return _apiKeyCache;
+                    }
+                }
+                CalculationLogService.Log("AVISO: Arquivo 'ors_api_key.txt' não encontrado ou com chave inválida.");
+                _apiKeyCache = "";
+                return null;
+            }
+            catch (Exception ex)
+            {
+                CalculationLogService.Log($"ERRO: Falha ao ler a chave da API. {ex.Message}");
+                return null;
+            }
         }
 
-        /// <summary>
-        /// Rota com múltiplos pontos "Cidade, UF" (ordem dada). Soma as pernas (legs) retornadas pela API.
-        /// Se closeLoop=true, adiciona o primeiro ponto no fim para fechar o ciclo.
-        /// </summary>
+        private static OpenRouteServiceClient? GetClient()
+        {
+            if (_orsClient != null) return _orsClient;
+
+            var apiKey = GetApiKey();
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                _orsClient = new OpenRouteServiceClient(apiKey);
+                return _orsClient;
+            }
+            return null;
+        }
+
         public static async Task<RouteResult> TryRouteLegsKmAsync(IEnumerable<string> pontos, bool closeLoop)
         {
+            var client = GetClient();
+            if (client == null)
+            {
+                return new RouteResult { Error = "Chave da API não configurada. Adicione a chave ao arquivo 'ors_api_key.txt'." };
+            }
+
             var list = pontos.Where(s => !string.IsNullOrWhiteSpace(s)).Select(NormalizePlace).ToList();
-            if (list.Count < 2) return new RouteResult { TotalKm = null, Used = "OSRM", Error = "Pontos insuficientes" };
+            if (list.Count < 2) return new RouteResult { Error = "Pontos insuficientes" };
 
             if (closeLoop && list.Count >= 2 && !string.Equals(list.First(), list.Last(), StringComparison.OrdinalIgnoreCase))
                 list.Add(list.First());
 
-            // Geocodifica todos
-            var coords = new List<(double lat, double lon)>();
+            var coords = new List<GeoPoint>();
+            var warnings = new List<string>();
             foreach (var p in list)
             {
-                var c = await GeocodeAsync(p);
-                if (c is null)
-                    return await FallbackHaversineAsync(list); // se qualquer ponto falhar, cai todo para Haversine
-                coords.Add(c.Value);
-            }
-
-            // Monta URL OSRM: lon,lat;lon,lat;...
-            var ci = CultureInfo.InvariantCulture;
-            var coordStr = string.Join(";",
-                coords.Select(c => $"{c.lon.ToString(ci)},{c.lat.ToString(ci)}"));
-
-            var url = $"https://router.project-osrm.org/route/v1/driving/{coordStr}?overview=false&steps=false&annotations=false";
-            try
-            {
-                var json = await http.GetStringAsync(url);
-
-                // Tenta pegar "code":"Ok"
-                if (!Regex.IsMatch(json, @"""code""\s*:\s*""Ok""", RegexOptions.IgnoreCase))
-                    return await FallbackHaversineAsync(list);
-
-                // Parseia legs[].distance (m)
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-
-                var routes = root.GetProperty("routes");
-                if (routes.GetArrayLength() == 0)
-                    return await FallbackHaversineAsync(list);
-
-                var r0 = routes[0];
-
-                var legsKm = new List<double>();
-                if (r0.TryGetProperty("legs", out var legsElem) && legsElem.ValueKind == JsonValueKind.Array)
+                var c = await client.GeocodeAsync(p);
+                if (c is null || (c.Value.Lat == 0 && c.Value.Lon == 0))
                 {
-                    foreach (var leg in legsElem.EnumerateArray())
-                    {
-                        if (leg.TryGetProperty("distance", out var d) && d.TryGetDouble(out var meters))
-                            legsKm.Add(Math.Round(meters / 1000.0, 1));
-                    }
-                }
-
-                double totalKm;
-                if (legsKm.Count > 0)
-                {
-                    totalKm = Math.Round(legsKm.Sum(), 1);
+                    warnings.Add($"Falha ao geocodificar o ponto '{p}'. Ponto ignorado.");
                 }
                 else
                 {
-                    // fallback para a distância total do route caso legs não venham
-                    if (r0.TryGetProperty("distance", out var dTot) && dTot.TryGetDouble(out var mt))
-                        totalKm = Math.Round(mt / 1000.0, 1);
-                    else
-                        return await FallbackHaversineAsync(list);
+                    coords.Add(c.Value);
                 }
-
-                return new RouteResult
-                {
-                    TotalKm = totalKm,
-                    LegsKm = legsKm,
-                    Used = "OSRM",
-                    Error = null,
-                    Coordinates = coords
-                };
             }
-            catch
+
+            if (coords.Count < 2) return new RouteResult { Error = "Pontos geocodificados insuficientes.", Used = "OpenRouteService" };
+
+            const int chunkSize = 69;
+            if (coords.Count <= chunkSize + 1)
             {
-                return await FallbackHaversineAsync(list);
+                return await MakeSingleRouteRequestAsync(client, coords, warnings);
+            }
+            else
+            {
+                return await MakeChunkedRouteRequestAsync(client, coords, warnings);
             }
         }
 
-        // ===== Helpers =====
-
-        static string NormalizePlace(string p)
-            => p.Contains("Brasil", StringComparison.OrdinalIgnoreCase) ? p.Trim() : (p + ", Brasil").Trim();
-
-        static async Task<(double lat, double lon)?> GeocodeAsync(string place)
+        private static async Task<RouteResult> MakeChunkedRouteRequestAsync(OpenRouteServiceClient client, List<GeoPoint> allCoords, List<string> initialWarnings)
         {
-            if (_geoCache.TryGetValue(place, out var cached)) return cached;
+            CalculationLogService.Log($"INFO: Rota com {allCoords.Count} pontos excede o limite. A requisição será dividida.");
+            
+            double totalKm = 0;
+            var allWarnings = new List<string>(initialWarnings);
 
-            try
+            const int chunkSize = 69;
+            for (int i = 0; i < allCoords.Count - 1; i += chunkSize)
             {
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("CsvIntegratorApp/1.0 (Nominatim polite usage)");
-                var url = $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(place)}";
-                var json = await http.GetStringAsync(url);
+                var chunkEndIndex = Math.Min(i + chunkSize, allCoords.Count - 1);
+                var chunkCoords = allCoords.GetRange(i, chunkEndIndex - i + 1);
+                
+                var chunkResult = await MakeSingleRouteRequestAsync(client, chunkCoords, new List<string>());
 
-                var mlat = Regex.Match(json, @"""lat"":\s*""([^""]+)""");
-                var mlon = Regex.Match(json, @"""lon"":\s*""([^""]+)""");
-                var ci = CultureInfo.InvariantCulture;
-
-                if (mlat.Success && mlon.Success
-                    && double.TryParse(mlat.Groups[1].Value, NumberStyles.Any, ci, out var lat)
-                    && double.TryParse(mlon.Groups[1].Value, NumberStyles.Any, ci, out var lon))
+                if (chunkResult.TotalKm.HasValue)
                 {
-                    _geoCache[place] = (lat, lon);
-                    return (lat, lon);
+                    totalKm += chunkResult.TotalKm.Value;
+                    if (!string.IsNullOrEmpty(chunkResult.Error)) allWarnings.Add(chunkResult.Error);
                 }
-            }
-            catch { }
-            return null;
-        }
-
-        static async Task<RouteResult> FallbackHaversineAsync(List<string> list)
-        {
-            // geocodifica tudo; se ainda assim falhar, devolve nulo
-            var coords = new List<(double lat, double lon)>();
-            foreach (var p in list)
-            {
-                var c = await GeocodeAsync(p);
-                if (c is null) return new RouteResult { TotalKm = null, Used = "HAVERSINE", Error = "Falha ao geocodificar", Coordinates = new() };
-                coords.Add(c.Value);
-            }
-
-            var legs = new List<double>();
-            for (int i = 1; i < coords.Count; i++)
-            {
-                legs.Add(HaversineKm(coords[i - 1].lat, coords[i - 1].lon, coords[i].lat, coords[i].lon));
+                else
+                {
+                    var errorMsg = $"Falha no trecho da rota a partir do ponto {i}. Usando linha reta. Erro: {chunkResult.Error}";
+                    allWarnings.Add(errorMsg);
+                    for (int j = 0; j < chunkCoords.Count - 1; j++) { totalKm += HaversineKm(chunkCoords[j].Lat, chunkCoords[j].Lon, chunkCoords[j+1].Lat, chunkCoords[j+1].Lon); }
+                }
             }
 
             return new RouteResult
             {
-                TotalKm = Math.Round(legs.Sum(), 1),
-                LegsKm = legs,
-                Used = "HAVERSINE",
-                Error = "OSRM indisponível; usando linha reta",
-                Coordinates = coords
+                TotalKm = Math.Round(totalKm, 1),
+                Used = "OpenRouteService (chunked)",
+                Error = allWarnings.Any() ? string.Join("; ", allWarnings) : null,
+                Coordinates = allCoords.Select(p => (p.Lat, p.Lon)).ToList()
             };
         }
 
+        private static async Task<RouteResult> MakeSingleRouteRequestAsync(OpenRouteServiceClient client, List<GeoPoint> coords, List<string> warnings)
+        {
+            var requestModel = new DirectionsRequest { Coordinates = coords.Select(c => new[] { c.Lon, c.Lat }).ToList() };
+            var responseModel = await client.GetDirectionsAsync(requestModel);
+
+            if (responseModel?.Features?.FirstOrDefault()?.Properties?.Summary is RouteSummary summary)
+            {
+                return new RouteResult
+                {
+                    TotalKm = Math.Round(summary.Distance / 1000.0, 1),
+                    Used = "OpenRouteService",
+                    Error = warnings.Any() ? string.Join("; ", warnings) : null,
+                    Coordinates = coords.Select(p => (p.Lat, p.Lon)).ToList()
+                };
+            }
+            
+            return new RouteResult { TotalKm = null, Error = "Não foi possível obter a rota da API." };
+        }
+
+        // ===== Helpers =====
+        static string NormalizePlace(string p) => p.Contains("Brasil", StringComparison.OrdinalIgnoreCase) ? p.Trim() : (p + ", Brasil").Trim();
         public static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
         {
             const double R = 6371.0;

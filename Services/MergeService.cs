@@ -50,26 +50,27 @@ namespace CsvIntegratorApp.Services
             var allChaves = mdfe.DestinosPorChave.Keys.ToList();
             var destinationPoints = new List<string>();
 
-            CalculationLogService.Log("Coletando pontos de destino...");
-            // Coleta todos os pontos de destino únicos
+            CalculationLogService.Log("Coletando pontos de destino a partir do SPED EFD...");
+            // Coleta pontos de destino apenas para NF-es encontradas no SPED
             foreach (var kv in mdfe.DestinosPorChave)
             {
                 var chave = kv.Key;
                 var (destCidadeMdfe, destUfMdfe, _) = kv.Value;
 
-                string destinoStr;
                 if (SpedTxtLookupService.TryGetAddressInfoPorChave(chave, out var addrInfo))
                 {
+                    // Combina o endereço do SPED com a cidade/UF do MDF-e para formar o ponto de destino.
                     var addressParts = new[] { addrInfo.street, addrInfo.number, destCidadeMdfe, addrInfo.uf ?? destUfMdfe };
-                    destinoStr = string.Join(", ", addressParts.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    var destinoStr = string.Join(", ", addressParts.Where(s => !string.IsNullOrWhiteSpace(s)));
+                    
+                    destinationPoints.Add(destinoStr);
                     CalculationLogService.Log($"Destino para NFe {chave} encontrado no SPED: {destinoStr}");
                 }
                 else
                 {
-                    destinoStr = MontaCidadeUf(destCidadeMdfe, destUfMdfe) ?? h.UFFim ?? "";
-                    CalculationLogService.Log($"Destino para NFe {chave} usando dados do MDF-e: {destinoStr}");
+                    // Se a chave NFe do MDF-e não for encontrada no SPED, ignora o destino.
+                    CalculationLogService.Log($"AVISO: A chave NFe {chave} do MDF-e não foi encontrada no SPED EFD. Este destino será ignorado no cálculo da rota.");
                 }
-                destinationPoints.Add(destinoStr);
             }
 
             // Se não houver destinos no MDF-e, usa o fallback
@@ -119,7 +120,7 @@ namespace CsvIntegratorApp.Services
 
             RouteLogService.GenerateRouteMap(routeResult.Coordinates);
 
-            if (routeResult.TotalKm.HasValue && routeResult.Used == "OSRM")
+            if (routeResult.TotalKm.HasValue && routeResult.Used == "OpenRouteService (chunked)")
             {
                 finalRow.DistanciaPercorridaKm = routeResult.TotalKm;
                 finalRow.Roteiro = "Rota Calculada com Sucesso";

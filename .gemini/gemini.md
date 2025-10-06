@@ -1,4 +1,3 @@
-
 # gemini.md — Contexto do Projeto “ICMS / SPED Integrator”
 _Data: 2025-10-04 · Fuso: America/Sao_Paulo_
 
@@ -194,6 +193,28 @@ Inclua ambos arquivos (`repo_tree.txt`, `repo_symbols.txt`) ao rodar o `gemini-c
 - [ ] Estratégias de *data quality* e validação fiscal (regras ICMS específicas por UF).
 
 ---
+
+## 14) Atualizações Recentes na Arquitetura de Roteamento
+
+O sistema de geocodificação e cálculo de rotas foi significativamente refatorado para melhorar a robustez, manutenibilidade e performance, seguindo padrões de mercado.
+
+### 14.1) Migração para OpenRouteService (ORS)
+O provedor de dados geográficos foi migrado da combinação pública de Nominatim/OSRM para o **OpenRouteService (ORS)**. Isso oferece um serviço mais estável e integrado.
+
+- **Autenticação**: A comunicação com o ORS exige uma **chave de API**. O sistema foi configurado para ler esta chave do arquivo `ors_api_key.txt`, localizado na raiz do projeto.
+
+### 14.2) Cliente de API Desacoplado
+Para seguir o princípio de responsabilidade única, foi criado um novo serviço, `Services/ApiClients/OpenRouteServiceClient.cs`. 
+
+- **Responsabilidade**: Este cliente encapsula **toda** a lógica de comunicação com a API do ORS (geocodificação e direções), incluindo a montagem das requisições HTTP, tratamento de headers, serialização/deserialização de dados e logging detalhado de erros de API.
+- **Modelos de Dados**: Foram criados modelos de dados fortemente tipados para as requisições e respostas da API (`Models/OpenRouteService/DirectionsRequest.cs` e `DirectionsResponse.cs`), eliminando a manipulação manual de strings JSON e tornando o código mais seguro.
+
+### 14.3) Lógica de Roteamento Aprimorada
+O `Services/DistanceService.cs` foi simplificado para atuar como um orquestrador, utilizando o novo `OpenRouteServiceClient`.
+
+- **Chunking de Rotas Longas**: Para contornar o limite de 70 pontos por requisição da API do ORS, a lógica agora divide rotas longas em múltiplos "pedaços" (chunks), requisita cada um separadamente e agrega os resultados.
+- **Error Handling de Chunks**: Se um trecho (chunk) da rota falhar, o sistema agora calcula a distância para aquele trecho usando o método de backup (Haversine, linha reta) e continua o processo, em vez de abortar o cálculo inteiro.
+- **Cache Persistente**: A lógica de cache para geocodificação, que agora reside no `OpenRouteServiceClient`, salva os resultados em um arquivo `geocache.json`, melhorando a performance e reduzindo chamadas desnecessárias à API entre execuções do programa.
 
 > **Observação Final**  
 > Se o repositório contiver outras camadas (ex.: API web ou integração com Builder Chat), inclua os inventários (seção 10) para o modelo ajustar este contexto automaticamente ao “projeto correto”.

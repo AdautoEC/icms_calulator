@@ -1,0 +1,27 @@
+//Common testing requirement. If you are consuming an API in a sandbox/test region, uncomment this line of code ONLY for non production uses.
+//System.Net.ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
+//Be sure to run "Install-Package Microsoft.Net.Http" from your nuget command line.
+using System;
+using System.Net.Http;
+
+var baseAddress = new Uri("https://api.openrouteservice.org");
+
+using (var httpClient = new HttpClient{ BaseAddress = baseAddress })
+{
+  httpClient.DefaultRequestHeaders.Clear();
+  httpClient.DefaultRequestHeaders.TryAddWithoutValidation("accept", "application/json, application/geo+json, application/gpx+xml, img/png; charset=utf-8");
+  httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Content-Type", "application/json; charset=utf-8");
+  httpClient.DefaultRequestHeaders.Authorization =
+      new AuthenticationHeaderValue("Bearer", "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA1Y2ZmNTZkOThjNzQ4ZDg5ZGNmNWNmMzhmOTBiNjQzIiwiaCI6Im11cm11cjY0In0=");
+    
+    // quotes might have to be escaped
+    using (var content = new StringContent("{"coordinates":[[8.681495,49.41461],[8.686507,49.41943],[8.687872,49.420318]]}"))
+    {
+      using (var response = await httpClient.PostAsync("/v2/directions/driving-car/geojson", content))
+      {
+        string responseData = await response.Content.ReadAsStringAsync();
+        var data = JsonConvert.DeserializeObject(responseData);
+      }
+  }
+}
