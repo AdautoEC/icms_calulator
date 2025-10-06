@@ -13,6 +13,15 @@ namespace CsvIntegratorApp.Models.OpenRouteService
     {
         [JsonPropertyName("properties")]
         public RouteProperties Properties { get; set; }
+
+        [JsonPropertyName("geometry")]
+        public RouteGeometry Geometry { get; set; }
+    }
+
+    public class RouteGeometry
+    {
+        [JsonPropertyName("coordinates")]
+        public List<List<double>> Coordinates { get; set; }
     }
 
     public class RouteProperties

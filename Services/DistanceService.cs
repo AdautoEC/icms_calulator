@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using CsvIntegratorApp.Models;
 using CsvIntegratorApp.Models.OpenRouteService;
 using CsvIntegratorApp.Services.ApiClients;
 
@@ -15,13 +16,8 @@ namespace CsvIntegratorApp.Services
         public List<double> LegsKm { get; init; } = new();
         public string? Used { get; init; }
         public string? Error { get; init; }
-        public List<(double lat, double lon)> Coordinates { get; init; } = new();
-    }
-
-    public struct GeoPoint
-    {
-        public double Lat { get; set; }
-        public double Lon { get; set; }
+        public List<List<double>> Polyline { get; init; } = new();
+        public List<WaypointInfo> Waypoints { get; init; } = new();
     }
 
     public static class DistanceService
@@ -68,7 +64,7 @@ namespace CsvIntegratorApp.Services
             return null;
         }
 
-        public static async Task<RouteResult> TryRouteLegsKmAsync(IEnumerable<string> pontos, bool closeLoop)
+        public static async Task<RouteResult> TryRouteLegsKmAsync(List<WaypointInfo> waypoints, bool closeLoop)
         {
             var client = GetClient();
             if (client == null)
@@ -76,65 +72,82 @@ namespace CsvIntegratorApp.Services
                 return new RouteResult { Error = "Chave da API não configurada. Adicione a chave ao arquivo 'ors_api_key.txt'." };
             }
 
-            var list = pontos.Where(s => !string.IsNullOrWhiteSpace(s)).Select(NormalizePlace).ToList();
-            if (list.Count < 2) return new RouteResult { Error = "Pontos insuficientes" };
+            if (waypoints.Count < 2) return new RouteResult { Error = "Pontos insuficientes" };
 
-            if (closeLoop && list.Count >= 2 && !string.Equals(list.First(), list.Last(), StringComparison.OrdinalIgnoreCase))
-                list.Add(list.First());
-
-            var coords = new List<GeoPoint>();
             var warnings = new List<string>();
-            foreach (var p in list)
+            foreach (var waypoint in waypoints)
             {
-                var c = await client.GeocodeAsync(p);
+                var c = await client.GeocodeAsync(waypoint.Address);
                 if (c is null || (c.Value.Lat == 0 && c.Value.Lon == 0))
                 {
-                    warnings.Add($"Falha ao geocodificar o ponto '{p}'. Ponto ignorado.");
+                    warnings.Add($"Falha ao geocodificar o ponto '{waypoint.Address}'. Ponto ignorado.");
                 }
                 else
                 {
-                    coords.Add(c.Value);
+                    waypoint.Coordinates = c.Value;
                 }
             }
 
-            if (coords.Count < 2) return new RouteResult { Error = "Pontos geocodificados insuficientes.", Used = "OpenRouteService" };
+            var validWaypoints = waypoints.Where(w => w.Coordinates.Lat != 0 || w.Coordinates.Lon != 0).ToList();
+
+            if (validWaypoints.Count < 2) return new RouteResult { Error = "Pontos geocodificados insuficientes.", Waypoints = validWaypoints };
+
+            if (closeLoop && validWaypoints.Count >= 2)
+            {
+                var first = validWaypoints.First();
+                var last = validWaypoints.Last();
+                if (first.Coordinates.Lat != last.Coordinates.Lat || first.Coordinates.Lon != last.Coordinates.Lon)
+                {
+                    validWaypoints.Add(first);
+                }
+            }
 
             const int chunkSize = 69;
-            if (coords.Count <= chunkSize + 1)
+            if (validWaypoints.Count <= chunkSize + 1)
             {
-                return await MakeSingleRouteRequestAsync(client, coords, warnings);
+                return await MakeSingleRouteRequestAsync(client, validWaypoints, warnings);
             }
             else
             {
-                return await MakeChunkedRouteRequestAsync(client, coords, warnings);
+                return await MakeChunkedRouteRequestAsync(client, validWaypoints, warnings);
             }
         }
 
-        private static async Task<RouteResult> MakeChunkedRouteRequestAsync(OpenRouteServiceClient client, List<GeoPoint> allCoords, List<string> initialWarnings)
+        private static async Task<RouteResult> MakeChunkedRouteRequestAsync(OpenRouteServiceClient client, List<WaypointInfo> allWaypoints, List<string> initialWarnings)
         {
-            CalculationLogService.Log($"INFO: Rota com {allCoords.Count} pontos excede o limite. A requisição será dividida.");
+            CalculationLogService.Log($"INFO: Rota com {allWaypoints.Count} pontos excede o limite. A requisição será dividida.");
             
             double totalKm = 0;
             var allWarnings = new List<string>(initialWarnings);
+            var fullPolyline = new List<List<double>>();
 
             const int chunkSize = 69;
-            for (int i = 0; i < allCoords.Count - 1; i += chunkSize)
+            for (int i = 0; i < allWaypoints.Count - 1; i += chunkSize)
             {
-                var chunkEndIndex = Math.Min(i + chunkSize, allCoords.Count - 1);
-                var chunkCoords = allCoords.GetRange(i, chunkEndIndex - i + 1);
+                var chunkEndIndex = Math.Min(i + chunkSize, allWaypoints.Count - 1);
+                var chunkWaypoints = allWaypoints.GetRange(i, chunkEndIndex - i + 1);
                 
-                var chunkResult = await MakeSingleRouteRequestAsync(client, chunkCoords, new List<string>());
+                var chunkResult = await MakeSingleRouteRequestAsync(client, chunkWaypoints, new List<string>());
 
                 if (chunkResult.TotalKm.HasValue)
                 {
                     totalKm += chunkResult.TotalKm.Value;
+                    if (chunkResult.Polyline.Any())
+                    {
+                        fullPolyline.AddRange(fullPolyline.Any() ? chunkResult.Polyline.Skip(1) : chunkResult.Polyline);
+                    }
                     if (!string.IsNullOrEmpty(chunkResult.Error)) allWarnings.Add(chunkResult.Error);
                 }
                 else
                 {
                     var errorMsg = $"Falha no trecho da rota a partir do ponto {i}. Usando linha reta. Erro: {chunkResult.Error}";
                     allWarnings.Add(errorMsg);
-                    for (int j = 0; j < chunkCoords.Count - 1; j++) { totalKm += HaversineKm(chunkCoords[j].Lat, chunkCoords[j].Lon, chunkCoords[j+1].Lat, chunkCoords[j+1].Lon); }
+                    for (int j = 0; j < chunkWaypoints.Count - 1; j++) 
+                    { 
+                        totalKm += HaversineKm(chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon, chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon); 
+                        if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon });
+                        fullPolyline.Add(new List<double> { chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon });
+                    }
                 }
             }
 
@@ -143,31 +156,55 @@ namespace CsvIntegratorApp.Services
                 TotalKm = Math.Round(totalKm, 1),
                 Used = "OpenRouteService (chunked)",
                 Error = allWarnings.Any() ? string.Join("; ", allWarnings) : null,
-                Coordinates = allCoords.Select(p => (p.Lat, p.Lon)).ToList()
+                Polyline = fullPolyline,
+                Waypoints = allWaypoints
             };
         }
 
-        private static async Task<RouteResult> MakeSingleRouteRequestAsync(OpenRouteServiceClient client, List<GeoPoint> coords, List<string> warnings)
+        private static async Task<RouteResult> MakeSingleRouteRequestAsync(OpenRouteServiceClient client, List<WaypointInfo> waypoints, List<string> warnings)
         {
+            var coords = waypoints.Select(w => w.Coordinates).ToList();
             var requestModel = new DirectionsRequest { Coordinates = coords.Select(c => new[] { c.Lon, c.Lat }).ToList() };
             var responseModel = await client.GetDirectionsAsync(requestModel);
 
-            if (responseModel?.Features?.FirstOrDefault()?.Properties?.Summary is RouteSummary summary)
+            var feature = responseModel?.Features?.FirstOrDefault();
+            if (feature?.Properties?.Summary is RouteSummary summary)
             {
+                var polyline = new List<List<double>>();
+                if (feature.Geometry?.Coordinates != null)
+                {
+                    polyline = feature.Geometry.Coordinates.Select(p => new List<double> { p[1], p[0] }).ToList();
+                }
+
                 return new RouteResult
                 {
                     TotalKm = Math.Round(summary.Distance / 1000.0, 1),
                     Used = "OpenRouteService",
                     Error = warnings.Any() ? string.Join("; ", warnings) : null,
-                    Coordinates = coords.Select(p => (p.Lat, p.Lon)).ToList()
+                    Polyline = polyline,
+                    Waypoints = waypoints
                 };
             }
             
-            return new RouteResult { TotalKm = null, Error = "Não foi possível obter a rota da API." };
+            double totalKm = 0;
+            var fallbackPolyline = new List<List<double>>();
+            for(int i = 0; i < coords.Count - 1; i++)
+            {
+                totalKm += HaversineKm(coords[i].Lat, coords[i].Lon, coords[i+1].Lat, coords[i+1].Lon);
+                if (i == 0) fallbackPolyline.Add(new List<double> { coords[i].Lat, coords[i].Lon });
+                fallbackPolyline.Add(new List<double> { coords[i+1].Lat, coords[i+1].Lon });
+            }
+
+            return new RouteResult 
+            {
+                TotalKm = totalKm,
+                Used = "Haversine (fallback)",
+                Error = "Não foi possível obter a rota da API. Usando cálculo de linha reta.",
+                Polyline = fallbackPolyline,
+                Waypoints = waypoints
+            };
         }
 
-        // ===== Helpers =====
-        static string NormalizePlace(string p) => p.Contains("Brasil", StringComparison.OrdinalIgnoreCase) ? p.Trim() : (p + ", Brasil").Trim();
         public static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
         {
             const double R = 6371.0;

@@ -1,9 +1,10 @@
-// Services/RouteLogService.cs
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using CsvIntegratorApp.Models;
 
 namespace CsvIntegratorApp.Services
 {
@@ -11,16 +12,29 @@ namespace CsvIntegratorApp.Services
     {
         public static string? LastGeneratedMapPath { get; private set; }
 
-        public static void GenerateRouteMap(List<(double lat, double lon)>? coordinates, string fileName = "rota.html")
+        public static void GenerateRouteMap(List<List<double>>? polyline, List<WaypointInfo>? waypoints, string fileName = "rota.html")
         {
-            if (coordinates == null || coordinates.Count < 2)
+            if (polyline == null || polyline.Count < 2)
             {
                 LastGeneratedMapPath = null;
                 return;
             }
 
             var ci = CultureInfo.InvariantCulture;
-            var pointsJs = string.Join(",", coordinates.Select(c => $"[{c.lat.ToString(ci)}, {c.lon.ToString(ci)}]"));
+            var pointsJs = string.Join(",", polyline.Select(p => $"[{p[0].ToString(ci)}, {p[1].ToString(ci)}]"));
+
+            var waypointsJs = "[]";
+            if (waypoints != null && waypoints.Any())
+            {
+                var waypointsData = waypoints.Select(w => new
+                {
+                    lat = w.Coordinates.Lat,
+                    lon = w.Coordinates.Lon,
+                    address = w.Address,
+                    invoice = w.InvoiceNumber
+                }).ToList();
+                waypointsJs = JsonSerializer.Serialize(waypointsData);
+            }
 
             var html = new StringBuilder();
             html.AppendLine("<!DOCTYPE html>");
@@ -43,9 +57,15 @@ namespace CsvIntegratorApp.Services
             html.AppendLine($"    var points = [{pointsJs}];");
             html.AppendLine("    var polyline = L.polyline(points, {color: 'blue'}).addTo(map);");
             html.AppendLine("    map.fitBounds(polyline.getBounds().pad(0.1));");
-            // Marcadores
-            html.AppendLine("    L.marker(points[0]).addTo(map).bindPopup('<b>Origem</b>');");
-            html.AppendLine("    L.marker(points[points.length - 1]).addTo(map).bindPopup('<b>Destino Final</b>');");
+
+            html.AppendLine($"    var waypoints = {waypointsJs};");
+            html.AppendLine("    for (var i = 0; i < waypoints.length; i++) {");
+            html.AppendLine("        var waypoint = waypoints[i];");
+            html.AppendLine("        var marker = L.marker([waypoint.lat, waypoint.lon]).addTo(map);");
+            html.AppendLine("        var popupContent = '<b>' + waypoint.invoice + '</b><br>' + waypoint.address;");
+            html.AppendLine("        marker.bindPopup(popupContent);");
+            html.AppendLine("    }");
+
             html.AppendLine("</script>");
             html.AppendLine("</body>");
             html.AppendLine("</html>");

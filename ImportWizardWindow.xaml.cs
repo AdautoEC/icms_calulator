@@ -66,7 +66,7 @@ namespace CsvIntegratorApp
                     nfeItems = parsed;
                 }
 
-                var merged = await MergeService.MergeAsync(nfeItems, mdfe, somarRetornoParaOrigem: true);
+                var merged = await MergeService.MergeAsync(nfeItems, mdfe, true);
 
                 _currentRows = merged;
                 PreviewGrid.ItemsSource = null;

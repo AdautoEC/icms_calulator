@@ -10,13 +10,6 @@ namespace CsvIntegratorApp.Services
 {
     public static class MergeService
     {
-        /// <summary>
-        /// Constrói linhas a partir do MDF-e e enriquece com itens da NFe (litros/valores/placa).
-        /// Distância = soma das pernas por API (OSRM): Origem(MDF-e) -> Destino(MDF-e) [-> Origem].
-        /// </summary>
-        /// <param name="nfeItems">Pode ser null/vazio. Enriquecimento por chave da NF-e.</param>
-        /// <param name="mdfe">Parser do MDF-e (obrigatório).</param>
-        /// <param name="somarRetornoParaOrigem">Se true, adiciona a perna Destino->Origem ao total.</param>
         public static async Task<List<ModelRow>> MergeAsync(
             List<NfeParsedItem>? nfeItems,
             MdfeParsed mdfe,
@@ -27,7 +20,6 @@ namespace CsvIntegratorApp.Services
 
             var h = mdfe.Header;
 
-            // Origem textual (Cidade, UF) só do MDF-e
             var origemCidade = h.OrigemCidade ?? h.EmitCidade;
             var origemUF = h.UFIni ?? h.EmitUF;
             var origemStr = (!string.IsNullOrWhiteSpace(origemCidade) && !string.IsNullOrWhiteSpace(origemUF))
@@ -42,16 +34,14 @@ namespace CsvIntegratorApp.Services
             }
             CalculationLogService.Log($"Origem definida como: {origemStr}");
 
-            // Índice NFe por chave (para enriquecer litros/valores/placa)
             var porChave = (nfeItems ?? new List<NfeParsedItem>())
                 .GroupBy(x => x.ChaveNFe ?? "", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
             var allChaves = mdfe.DestinosPorChave.Keys.ToList();
-            var destinationPoints = new List<string>();
+            var waypoints = new List<WaypointInfo> { new WaypointInfo { Address = origemStr, InvoiceNumber = "Origem" } };
 
             CalculationLogService.Log("Coletando pontos de destino a partir do SPED EFD...");
-            // Coleta pontos de destino apenas para NF-es encontradas no SPED
             foreach (var kv in mdfe.DestinosPorChave)
             {
                 var chave = kv.Key;
@@ -59,35 +49,31 @@ namespace CsvIntegratorApp.Services
 
                 if (SpedTxtLookupService.TryGetAddressInfoPorChave(chave, out var addrInfo))
                 {
-                    // Combina o endereço do SPED com a cidade/UF do MDF-e para formar o ponto de destino.
                     var addressParts = new[] { addrInfo.street, addrInfo.number, destCidadeMdfe, addrInfo.uf ?? destUfMdfe };
                     var destinoStr = string.Join(", ", addressParts.Where(s => !string.IsNullOrWhiteSpace(s)));
                     
-                    destinationPoints.Add(destinoStr);
+                    waypoints.Add(new WaypointInfo { Address = destinoStr, InvoiceNumber = chave });
                     CalculationLogService.Log($"Destino para NFe {chave} encontrado no SPED: {destinoStr}");
                 }
                 else
                 {
-                    // Se a chave NFe do MDF-e não for encontrada no SPED, ignora o destino.
                     CalculationLogService.Log($"AVISO: A chave NFe {chave} do MDF-e não foi encontrada no SPED EFD. Este destino será ignorado no cálculo da rota.");
                 }
             }
 
-            // Se não houver destinos no MDF-e, usa o fallback
-            if (destinationPoints.Count == 0)
+            if (waypoints.Count == 1) // Only origin
             {
                 var (destCidadeFallback, destUfFallback) = PrimeiroDestinoDoMdfe(mdfe) ?? (null, h.UFFim);
                 var destinoStr = MontaCidadeUf(destCidadeFallback, destUfFallback);
                 if (!string.IsNullOrWhiteSpace(destinoStr))
                 {
-                    destinationPoints.Add(destinoStr);
+                    waypoints.Add(new WaypointInfo { Address = destinoStr, InvoiceNumber = "Destino Fallback" });
                     CalculationLogService.Log($"Nenhum destino no MDF-e. Usando fallback: {destinoStr}");
                 }
             }
 
             var finalRow = BaseFromMdfe(h);
 
-            // Agrega dados de todas as NF-e de combustível associadas
             double totalLitros = 0;
             double totalValorCombustivel = 0;
             var combustivelNFe = porChave.Values.Where(n => n.IsCombustivel).ToList();
@@ -105,22 +91,13 @@ namespace CsvIntegratorApp.Services
                 CalculationLogService.Log($"Encontradas {combustivelNFe.Count} NF-e de combustível. Total: {totalLitros} L, R$ {totalValorCombustivel}.");
             }
 
-            // Constrói a rota completa
-            var waypoints = new List<string> { origemStr };
-            waypoints.AddRange(destinationPoints.Distinct(StringComparer.OrdinalIgnoreCase));
-
-            if (somarRetornoParaOrigem && waypoints.Count > 1)
-            {
-                waypoints.Add(origemStr);
-            }
-
-            CalculationLogService.Log($"Enviando {waypoints.Count} pontos para cálculo de rota: {string.Join(" | ", waypoints)}");
-            var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, closeLoop: false);
+            var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, somarRetornoParaOrigem);
             CalculationLogService.Log($"Resultado da API: Distancia={routeResult.TotalKm}km, Usado='{routeResult.Used}', Erro='{routeResult.Error}'");
 
-            RouteLogService.GenerateRouteMap(routeResult.Coordinates);
+            CalculationLogService.Log("Gerando mapa da rota...");
+            RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints);
 
-            if (routeResult.TotalKm.HasValue && routeResult.Used == "OpenRouteService (chunked)")
+            if (routeResult.TotalKm.HasValue)
             {
                 finalRow.DistanciaPercorridaKm = routeResult.TotalKm;
                 finalRow.Roteiro = "Rota Calculada com Sucesso";
@@ -135,7 +112,7 @@ namespace CsvIntegratorApp.Services
 
             finalRow.ChaveNFe = string.Join(", ", allChaves.Distinct());
             finalRow.UFDest = h.UFFim;
-            finalRow.CidadeDest = waypoints.LastOrDefault()?.Split(',')[0].Trim();
+            finalRow.CidadeDest = waypoints.LastOrDefault()?.Address.Split(',')[0].Trim();
 
             finalRow.AliquotaCredito = GetAliquota(finalRow.UFEmit, finalRow.UFDest, h.UFIni, h.UFFim);
             finalRow.ValorCredito = CalcCredito(finalRow.ValorTotalCombustivel, finalRow.AliquotaCredito);
@@ -145,29 +122,19 @@ namespace CsvIntegratorApp.Services
             return new List<ModelRow> { finalRow };
         }
 
-        // =========================================================
-        // Helpers de enriquecimento, normalização e cálculo de rota
-        // =========================================================
-
         private static ModelRow BaseFromMdfe(MdfeHeader h)
         {
-            // Tenta buscar o tipo do veículo no nosso "banco de dados" local primeiro
             var tipoVeiculo = VehicleService.GetVehicleType(h.Placa, h.Renavam) 
-                              ?? MapTipo(h.TpRod, h.TpCar); // Fallback para o mapeamento padrão
+                              ?? MapTipo(h.TpRod, h.TpCar); 
 
             return new ModelRow
             {
-                // Veículo (MDF-e)
-                Modelo = null, // MDF-e não traz "modelo" textual
+                Modelo = null, 
                 Tipo = tipoVeiculo,
                 Renavam = h.Renavam,
                 Placa = h.Placa,
-
-                // Trajeto base
                 MdfeNumero = h.NumeroMdf,
                 Data = h.DhIniViagem ?? h.DhEmi,
-
-                // Apoio (UF/Cidade do emitente podem ajudar na alíquota)
                 UFEmit = h.EmitUF,
                 CidadeEmit = ToTitle(h.EmitCidade)
             };
@@ -181,14 +148,11 @@ namespace CsvIntegratorApp.Services
             r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto;
             r.ValorUnitario = n.ValorUnitario;
             r.ValorTotalCombustivel = n.ValorTotal;
-
-            // UF/Cidade da NFe NÃO dirigem a rota, mas ajudam na alíquota
             r.UFEmit = n.UFEmit ?? r.UFEmit;
-            r.UFDest = r.UFDest ?? n.UFDest;      // só para decisão de alíquota
+            r.UFDest = r.UFDest ?? n.UFDest;      
             r.CidadeEmit = r.CidadeEmit ?? ToTitle(n.CidadeEmit);
             r.CidadeDest = r.CidadeDest ?? ToTitle(n.CidadeDest);
 
-            // Placa (caso MDF-e não traga)
             if (string.IsNullOrWhiteSpace(r.Placa) && !string.IsNullOrWhiteSpace(n.PlacaObservada))
                 r.Placa = n.PlacaObservada;
         }
@@ -196,7 +160,6 @@ namespace CsvIntegratorApp.Services
         private static NfeParsedItem? TentarMatchPorPlacaEData(IEnumerable<NfeParsedItem> nfe, string? placa, DateTime? dataRef)
         {
             if (string.IsNullOrWhiteSpace(placa) || !dataRef.HasValue) return null;
-            // janela de ±3 dias
             var min = dataRef.Value.AddDays(-3);
             var max = dataRef.Value.AddDays(3);
 
@@ -208,9 +171,6 @@ namespace CsvIntegratorApp.Services
                 .FirstOrDefault();
         }
 
-        /// <summary>
-        /// 17% intraestadual; 7% interestadual. Usa UF da NFe se houver, senão UFIni/UFFim do MDF-e.
-        /// </summary>
         private static double? GetAliquota(string? ufEmit, string? ufDest, string? ufIni, string? ufFim)
         {
             var a = ufEmit ?? ufIni;
@@ -253,7 +213,6 @@ namespace CsvIntegratorApp.Services
 
         private static (string? xMun, string? uf)? PrimeiroDestinoDoMdfe(MdfeParsed mdfe)
         {
-            // pega o 1º item da tabela de destinos por chave
             if (mdfe.DestinosPorChave.Count == 0) return null;
             var first = mdfe.DestinosPorChave.First().Value;
             return (first.Cidade, first.UF);
@@ -268,31 +227,12 @@ namespace CsvIntegratorApp.Services
             return null;
         }
 
-        // ===== normalização de nomes (ITAPORA vs ITAPORÃ) =====
-
-        private static bool IsSamePlace(string a, string b)
-            => RemoveDiacritics(a).Trim().ToUpperInvariant()
-             == RemoveDiacritics(b).Trim().ToUpperInvariant();
-
         private static string ToTitle(string? s)
         {
             if (string.IsNullOrWhiteSpace(s)) return s ?? "";
             s = s.ToLowerInvariant();
             var ti = CultureInfo.GetCultureInfo("pt-BR").TextInfo;
             return ti.ToTitleCase(s);
-        }
-
-        private static string RemoveDiacritics(string s)
-        {
-            var norm = s.Normalize(NormalizationForm.FormD);
-            var sb = new StringBuilder();
-            foreach (var ch in norm)
-            {
-                var uc = CharUnicodeInfo.GetUnicodeCategory(ch);
-                if (uc != UnicodeCategory.NonSpacingMark)
-                    sb.Append(ch);
-            }
-            return sb.ToString().Normalize(NormalizationForm.FormC);
         }
     }
 }

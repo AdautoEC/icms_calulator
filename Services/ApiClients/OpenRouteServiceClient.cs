@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CsvIntegratorApp.Models.OpenRouteService;
+using CsvIntegratorApp.Models;
 
 namespace CsvIntegratorApp.Services.ApiClients
 {
