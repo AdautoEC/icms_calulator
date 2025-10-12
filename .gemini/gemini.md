@@ -114,9 +114,41 @@ d = 2R * asin( sqrt( sin²((lat2-lat1)/2) + cos(lat1)*cos(lat2)*sin²((lon2-lon1
 
 ## 7) Esquema de CSVs (Sugerido)
 
-- **entregas.csv**: `ordem, chNFe, cod_part, nome, logradouro, municipio, uf, cep, lat, lon, data, km_acumulado`  
-- **rotas.csv**: `seq, lat1, lon1, lat2, lon2, km_segmento, chNFe_origem, chNFe_destino`  
-- **erros.csv**: `arquivo, linha, registro, chave, motivo`
+Abaixo estão as estruturas sugeridas para os arquivos CSV gerados. Este formato de lista garante responsividade e clareza em qualquer dispositivo.
+
+### `entregas.csv`
+Detalha cada entrega como um evento individual na rota.
+- **`ordem`**: Sequência numérica da entrega na rota.
+- **`chNFe`**: Chave de acesso da Nota Fiscal Eletrônica.
+- **`cod_part`**: Código do participante (destinatário) conforme registro 0150.
+- **`nome`**: Nome do destinatário.
+- **`logradouro`**: Endereço completo da entrega.
+- **`municipio`**: Município da entrega.
+- **`uf`**: Unidade Federativa da entrega.
+- **`cep`**: Código de Endereçamento Postal.
+- **`lat`**: Latitude do endereço de entrega.
+- **`lon`**: Longitude do endereço de entrega.
+- **`data`**: Data do documento fiscal associado.
+- **`km_acumulado`**: Distância acumulada em quilômetros desde o início da rota.
+
+### `rotas.csv`
+Descreve os segmentos de viagem entre as entregas.
+- **`seq`**: Sequência numérica do trecho da rota.
+- **`lat1`**: Latitude do ponto de partida do trecho.
+- **`lon1`**: Longitude do ponto de partida do trecho.
+- **`lat2`**: Latitude do ponto de chegada do trecho.
+- **`lon2`**: Longitude do ponto de chegada do trecho.
+- **`km_segmento`**: Distância do trecho em quilômetros.
+- **`chNFe_origem`**: Chave da NFe que marca o início do trecho.
+- **`chNFe_destino`**: Chave da NFe que marca o fim do trecho.
+
+### `erros.csv`
+Registra quaisquer problemas encontrados durante o processamento.
+- **`arquivo`**: Nome do arquivo de origem onde o erro foi detectado.
+- **`linha`**: Número da linha no arquivo de origem.
+- **`registro`**: Tipo de registro (ex: `C100`, `0150`) com erro.
+- **`chave`**: Chave primária ou identificador do registro com erro.
+- **`motivo`**: Descrição clara e concisa do erro.
 
 ---
 
