@@ -16,6 +16,7 @@ namespace CsvIntegratorApp
     public partial class ImportWizardWindow : Window
     {
         private List<ModelRow> _currentRows = new();
+        private MdfeParsed _mdfe;
 
         public ImportWizardWindow()
         {
@@ -58,7 +59,7 @@ namespace CsvIntegratorApp
                     SpedTxtLookupService.LoadTxt(TxtPath.Text);
                 }
 
-                var mdfe = ParserMDFe.Parse(MdfePath.Text);
+                _mdfe = ParserMDFe.Parse(MdfePath.Text);
 
                 List<NfeParsedItem>? nfeItems = null;
                 if (System.IO.File.Exists(NfePath.Text))
@@ -67,7 +68,7 @@ namespace CsvIntegratorApp
                     nfeItems = parsed;
                 }
 
-                var merged = await MergeService.MergeAsync(nfeItems, mdfe, true);
+                var merged = await MergeService.MergeAsync(nfeItems, _mdfe, true);
 
                 _currentRows = merged;
                 PreviewGrid.ItemsSource = null;
@@ -114,13 +115,13 @@ namespace CsvIntegratorApp
                     return;
                 }
 
-                var sfd = new SaveFileDialog { Filter = "Excel Macro-Enabled Workbook (*.xlsm)|*.xlsm", FileName = "demonstrativo.xlsm" };
+                var sfd = new SaveFileDialog { Filter = "Excel Workbook (*.xlsx)|*.xlsx", FileName = "demonstrativo.xlsx" };
                 if (sfd.ShowDialog() == true)
                 {
-                    using var workbook = new XLWorkbook();
+                    using var workbook = new XLWorkbook("modelo_para_exportar.xlsx");
 
-                    CreateDemonstrativoWorksheet(workbook);
-                    CreateNotaAquisicaoWorksheet(workbook, _currentRows);
+                    PopulateDemonstrativoWorksheet(workbook.Worksheet("Demonstrativo"), _currentRows);
+                    PopulateNotaAquisicaoWorksheet(workbook.Worksheet("Nota de Aquisição Combustível"), _currentRows);
 
                     workbook.SaveAs(sfd.FileName);
                 }
@@ -131,168 +132,208 @@ namespace CsvIntegratorApp
             }
         }
 
-        private void CreateDemonstrativoWorksheet(IXLWorkbook workbook)
+        private void ExportConferencia_Click(object sender, RoutedEventArgs e)
         {
-            var worksheet = workbook.Worksheets.Add("Demonstrativo");
+            try
+            {
+                if (_mdfe == null)
+                {
+                    MessageBox.Show(this, "Nada para exportar. Faça o pré-preenchimento primeiro.", "Aviso");
+                    return;
+                }
 
-            // Page Setup
-            worksheet.PageSetup.PageOrientation = XLPageOrientation.Portrait;
-            worksheet.PageSetup.PaperSize = XLPaperSize.A4Paper;
+                var sfd = new SaveFileDialog { Filter = "Excel Workbook (*.xlsx)|*.xlsx", FileName = "conferencia.xlsx" };
+                if (sfd.ShowDialog() == true)
+                {
+                    var detailedRows = new List<ModelRow>();
+                    foreach (var kv in _mdfe.DestinosPorChave)
+                    {
+                        var chave = kv.Key;
+                        if (SpedTxtLookupService.TryGetC190InfoPorChave(chave, out var c190InfoList))
+                        {
+                            SpedTxtLookupService.TryGetAddressInfoPorChave(chave, out var addrInfo);
+                            foreach (var c190Info in c190InfoList)
+                            {
+                                var row = new ModelRow
+                                {
+                                    ChaveNFe = chave,
+                                    Cst = c190Info.cst,
+                                    Cfop = c190Info.cfop,
+                                    ValorIcms = c190Info.valorIcms,
+                                    BaseIcms = c190Info.baseIcms,
+                                    TotalDocumento = c190Info.totalDocumento,
+                                    Street = addrInfo.street,
+                                    Number = addrInfo.number,
+                                    Neighborhood = addrInfo.neighborhood,
+                                    UFDest = addrInfo.uf
+                                };
+                                detailedRows.Add(row);
+                            }
+                        }
+                    }
 
-            // Column Widths
-            worksheet.Column("A").Width = 9.0;
-            worksheet.Column("B").Width = 8.75;
-            worksheet.Column("C").Width = 12.625;
-            worksheet.Column("D").Width = 9.0;
-            // E is default
-            worksheet.Column("F").Width = 10.0;
-            worksheet.Column("G").Width = 9.375;
-            worksheet.Column("H").Width = 16.25;
-            worksheet.Column("I").Width = 24.125;
-            worksheet.Column("J").Width = 7.125;
-            worksheet.Column("K").Width = 19.125;
-            worksheet.Column("L").Width = 9.875;
-            worksheet.Column("M").Width = 12.875;
-            worksheet.Column("N").Width = 13.875;
-            worksheet.Column("O").Width = 13.25;
-            worksheet.Column("P").Width = 13.125;
-            worksheet.Column("Q").Width = 20.0;
-            worksheet.Column("R").Width = 13.75;
-
-            // Row Heights
-            worksheet.Row(2).Height = 25.5;
-            worksheet.Row(3).Height = 38.25;
-            worksheet.Row(4).Height = 38.25;
-            worksheet.Row(5).Height = 25.5;
-            worksheet.Row(6).Height = 191.25;
-
-            // Merged Cells
-            worksheet.Range("B5:C5").Merge();
-            worksheet.Range("B6:C6").Merge();
-            worksheet.Range("B2:E2").Merge();
-            worksheet.Range("F2:I2").Merge();
-            worksheet.Range("J2:K2").Merge();
-            worksheet.Range("L2:M2").Merge();
-            worksheet.Range("N2:O2").Merge();
-            worksheet.Range("Q2:R2").Merge();
-            worksheet.Range("B1:E1").Merge();
-            worksheet.Range("F1:K1").Merge();
-            worksheet.Range("L1:M1").Merge();
-            worksheet.Range("N1:O1").Merge();
-            worksheet.Range("Q1:R1").Merge();
-
-            // Header Style
-            var headerStyle = worksheet.Range("A1:R4").Style;
-            headerStyle.Font.FontName = "Cambria";
-            headerStyle.Font.FontSize = 10;
-            headerStyle.Font.Bold = false;
-            headerStyle.Font.Italic = false;
-            headerStyle.Font.FontColor = XLColor.FromTheme(XLThemeColor.Text1);
-            headerStyle.Fill.PatternType = XLFillPatternValues.Solid;
-            headerStyle.Fill.BackgroundColor = XLColor.FromArgb(0x00, 0x20, 0x60);
-            headerStyle.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            headerStyle.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            headerStyle.Alignment.WrapText = true;
-
-            // Column Headers and specific styles
-            worksheet.Cell("B1").Value = "Art. 62-B § 3º I";
-            worksheet.Cell("B1").Style.Font.Bold = true;
-            worksheet.Cell("F1").Value = "Art. 62-B § 3º II";
-            worksheet.Cell("F1").Style.Font.Bold = true;
-            worksheet.Cell("L1").Value = "Art. 62-B § 3º IV";
-            worksheet.Cell("L1").Style.Font.Bold = true;
-            worksheet.Cell("N1").Value = "Art. 62-B § 3º V";
-            worksheet.Cell("N1").Style.Font.Bold = true;
-            worksheet.Cell("P1").Value = "Art. 62-B § 3º VI";
-            worksheet.Cell("P1").Style.Font.Bold = true;
-            worksheet.Cell("Q1").Value = "Art. 62-B § 3º VII";
-            worksheet.Cell("Q1").Style.Font.Bold = true;
-
-            // Data alignment
-            worksheet.Range("A5:R6").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            worksheet.Range("A5:R6").Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+                    using var workbook = new XLWorkbook();
+                    CreateConferenciaC190Worksheet(workbook, detailedRows);
+                    workbook.SaveAs(sfd.FileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        private void CreateNotaAquisicaoWorksheet(IXLWorkbook workbook, List<ModelRow> rows)
+        private void PopulateDemonstrativoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
         {
-            var worksheet = workbook.Worksheets.Add("Nota de Aquisição Combustível");
+            var row = rows.FirstOrDefault();
+            if (row == null) return;
 
-            // Column Widths
-            worksheet.Column("A").Width = 7.125;
-            worksheet.Column("B").Width = 13.25;
-            worksheet.Column("C").Width = 24.875;
-            worksheet.Column("D").Width = 13.75;
-            worksheet.Column("E").Width = 9.875;
-            worksheet.Column("F").Width = 12.0;
-            worksheet.Column("G").Width = 8.125;
-            worksheet.Column("H").Width = 23.25;
-            worksheet.Column("I").Width = 8.25;
-            worksheet.Column("J").Width = 16.25;
-            worksheet.Column("K").Width = 12.25;
-            worksheet.Column("L").Width = 9.375;
-            worksheet.Column("M").Width = 13.375;
-            worksheet.Column("N").Width = 9.0;
-            worksheet.Column("Q").Width = 9.75;
-            worksheet.Column("R").Width = 9.625;
+            // Headers - Row 1
+            worksheet.Cell("A1").Value = "Art. 62-B § 3º I";
+            worksheet.Cell("E1").Value = "Art. 62-B § 3º II";
+            worksheet.Cell("K1").Value = "Art. 62-B § 3º IV";
+            worksheet.Cell("M1").Value = "Art. 62-B § 3º V";
+            worksheet.Cell("O1").Value = "Art. 62-B § 3º VI";
+            worksheet.Cell("P1").Value = "Art. 62-B § 3º VII";
 
-            // Row Heights
-            worksheet.Row(9).Height = 30.75;
-            worksheet.Row(10).Height = 38.25;
+            // Headers - Row 2
+            worksheet.Cell("A2").Value = "Veículo Utilizado";
+            worksheet.Cell("E2").Value = "Trajeto";
+            worksheet.Cell("I2").Value = "Carga";
+            worksheet.Cell("K2").Value = "Combustível";
+            worksheet.Cell("M2").Value = "Valor do Combustivel";
+            worksheet.Cell("O2").Value = "Crédito a ser apropriado";
+            worksheet.Cell("P2").Value = "Nota de Aquisição do Combustível";
 
-            // Merged Cells
-            worksheet.Range("B6:M6").Merge();
-            worksheet.Range("E7:F7").Merge();
+            // Headers - Row 3
+            worksheet.Cell("A3").Value = "Modelo";
+            worksheet.Cell("B3").Value = "Tipo";
+            worksheet.Cell("C3").Value = "Renavam";
+            worksheet.Cell("D3").Value = "Placa";
+            worksheet.Cell("E3").Value = "MDF-e";
+            worksheet.Cell("F3").Value = "Data";
+            worksheet.Cell("G3").Value = "Roteiro";
+            worksheet.Cell("H3").Value = "Distância Percorrida (KM)";
+            worksheet.Cell("I3").Value = "N° NF-e";
+            worksheet.Cell("J3").Value = "Data de Emissão";
+            worksheet.Cell("K3").Value = "Quantidade (LT)";
+            worksheet.Cell("L3").Value = "Espécie do Combustivel";
+            worksheet.Cell("M3").Value = "Valor unitário";
+            worksheet.Cell("N3").Value = "Valor Total do Combustivel";
+            worksheet.Cell("O3").Value = "Valor do Crédito a ser utilizado (17%)";
+            worksheet.Cell("P3").Value = "N° NF-e";
+            worksheet.Cell("Q3").Value = "Data de Aquisição";
 
-            // Header Style (Row 7)
-            var headerRange = worksheet.Range("A7:R7");
-            headerRange.Style.Font.FontName = "Cambria";
-            headerRange.Style.Font.FontSize = 10;
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Font.FontColor = XLColor.FromTheme(XLThemeColor.Text1);
-            headerRange.Style.Fill.PatternType = XLFillPatternValues.Solid;
-            headerRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0x00, 0x20, 0x60);
-            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-            headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
-            headerRange.Style.Alignment.WrapText = true;
+            // Data - Row 4
+            worksheet.Cell("A4").Value = row.Modelo;
+            worksheet.Cell("B4").Value = row.Tipo;
+            worksheet.Cell("C4").Value = row.Renavam;
+            worksheet.Cell("D4").Value = row.Placa;
+            worksheet.Cell("E4").Value = row.MdfeNumero;
+            worksheet.Cell("F4").Value = row.Data;
+            worksheet.Cell("G4").Value = row.Roteiro;
+            worksheet.Cell("H4").Value = row.DistanciaPercorridaKm;
+            worksheet.Cell("I4").Value = row.NFeNumero;
+            worksheet.Cell("J4").Value = row.DataEmissao;
+            worksheet.Cell("K4").Value = row.QuantidadeLitros;
+            worksheet.Cell("L4").Value = row.EspecieCombustivel;
+            worksheet.Cell("M4").Value = row.ValorUnitario;
+            worksheet.Cell("N4").Value = row.ValorTotalCombustivel;
+            worksheet.Cell("O4").Value = row.ValorCredito;
+            worksheet.Cell("P4").Value = row.NFeAquisicaoNumero;
+            worksheet.Cell("Q4").Value = row.DataAquisicao;
+        }
 
-            // Column Headers
-            worksheet.Cell("B7").Value = "Data de emissão";
-            worksheet.Cell("C7").Value = "Data de Entrada";
-            worksheet.Cell("D7").Value = "N° Nota Fiscal";
-            worksheet.Cell("E7").Value = "Fornecedor";
-            worksheet.Cell("G7").Value = "Endereço ";
+        private void PopulateNotaAquisicaoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
+        {
+            var row = rows.FirstOrDefault();
+            if (row == null) return;
+
+            // Populate summary rows
+            if (row.EspecieCombustivel?.ToLower().Contains("etanol") == true)
+            {
+                worksheet.Cell("C2").Value = row.QuantidadeLitros;
+                worksheet.Cell("D2").Value = row.ValorTotalCombustivel;
+            }
+            else if (row.EspecieCombustivel?.ToLower().Contains("diesel") == true)
+            {
+                worksheet.Cell("C3").Value = row.QuantidadeLitros;
+                worksheet.Cell("D3").Value = row.ValorTotalCombustivel;
+            }
+            else if (row.EspecieCombustivel?.ToLower().Contains("gasolina") == true)
+            {
+                worksheet.Cell("C4").Value = row.QuantidadeLitros;
+                worksheet.Cell("D4").Value = row.ValorTotalCombustivel;
+            }
+
+            // Headers
+            worksheet.Cell("A6").Value = "Demonstrativo de Aquisição de Combustivel";
+            worksheet.Cell("A7").Value = "Data de emissão";
+            worksheet.Cell("B7").Value = "Data de Entrada";
+            worksheet.Cell("C7").Value = "N° Nota Fiscal";
+            worksheet.Cell("D7").Value = "Fornecedor";
+            worksheet.Cell("G7").Value = "Endereço";
             worksheet.Cell("H7").Value = "Produto";
             worksheet.Cell("I7").Value = "Categoria";
             worksheet.Cell("J7").Value = "Quantidade (Litros)";
             worksheet.Cell("K7").Value = "Valor Unitário";
             worksheet.Cell("L7").Value = "Valor total";
-            worksheet.Cell("M7").Value = "Chave de Acesso";
 
-            // Data Population
-            int currentRow = 8;
+            worksheet.Cell("D8").Value = "CNPJ";
+            worksheet.Cell("E8").Value = "Razão Social";
+
+            // Data
+            worksheet.Cell("A9").Value = row.DataEmissao;
+            worksheet.Cell("B9").Value = row.Data;
+            worksheet.Cell("C9").Value = row.NFeNumero;
+            worksheet.Cell("D9").Value = row.FornecedorCnpj;
+            worksheet.Cell("E9").Value = row.FornecedorNome;
+            worksheet.Cell("G9").Value = row.FornecedorEndereco;
+            worksheet.Cell("H9").Value = row.EspecieCombustivel;
+            // Categoria is not in ModelRow
+            worksheet.Cell("J9").Value = row.QuantidadeLitros;
+            worksheet.Cell("K9").Value = row.ValorUnitario;
+            worksheet.Cell("L9").Value = row.ValorTotalCombustivel;
+
+        }
+
+        private void CreateConferenciaC190Worksheet(IXLWorkbook workbook, List<ModelRow> rows)
+        {
+            var worksheet = workbook.Worksheets.Add("ConferenciaC190");
+
+            // Headers
+            worksheet.Cell(1, 1).Value = "ChaveNFe";
+            worksheet.Cell(1, 2).Value = "CST";
+            worksheet.Cell(1, 3).Value = "CFOP";
+            worksheet.Cell(1, 4).Value = "ValorIcms";
+            worksheet.Cell(1, 5).Value = "BaseIcms";
+            worksheet.Cell(1, 6).Value = "TotalDocumento";
+            worksheet.Cell(1, 7).Value = "Rua";
+            worksheet.Cell(1, 8).Value = "Numero";
+            worksheet.Cell(1, 9).Value = "Bairro";
+            worksheet.Cell(1, 10).Value = "UF";
+
+            // Data
+            int currentRow = 2;
             foreach (var r in rows)
             {
-                // Mapping data - making educated guesses
-                worksheet.Cell(currentRow, 2).Value = r.DataAquisicao; // Data de emissão
-                worksheet.Cell(currentRow, 3).Value = r.Data; // Data de Entrada
-                worksheet.Cell(currentRow, 4).Value = r.NFeAquisicaoNumero; // N° Nota Fiscal
-                // E, F, G - Fornecedor, Endereço - No data in ModelRow
-                worksheet.Cell(currentRow, 8).Value = r.EspecieCombustivel; // Produto
-                // I - Categoria - No data in ModelRow
-                worksheet.Cell(currentRow, 10).Value = r.QuantidadeLitros;
-                worksheet.Cell(currentRow, 11).Value = r.ValorUnitario;
-                worksheet.Cell(currentRow, 12).Value = r.ValorTotalCombustivel;
-                worksheet.Cell(currentRow, 13).Value = r.NFeAquisicaoNumero; // Chave de Acesso
-
-                // Apply number formats
-                worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "_-* #,##0.00_-;\\-* #,##0.00_-;_-* \"-\"??_-;_-@_";
-                worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "_-* #,##0.0000_-;\\-* #,##0.0000_-;_-* \"-\"??_-;_-@_";
-                worksheet.Cell(currentRow, 12).Style.NumberFormat.Format = "_-* #,##0.00_-;\\-* #,##0.00_-;_-* \"-\"??_-;_-@_";
-                worksheet.Cell(currentRow, 13).Style.NumberFormat.Format = "@";
+                worksheet.Cell(currentRow, 1).Value = r.ChaveNFe;
+                worksheet.Cell(currentRow, 2).Value = r.Cst;
+                worksheet.Cell(currentRow, 3).Value = r.Cfop;
+                worksheet.Cell(currentRow, 4).Value = r.ValorIcms;
+                worksheet.Cell(currentRow, 5).Value = r.BaseIcms;
+                worksheet.Cell(currentRow, 6).Value = r.TotalDocumento;
+                worksheet.Cell(currentRow, 7).Value = r.Street;
+                worksheet.Cell(currentRow, 8).Value = r.Number;
+                worksheet.Cell(currentRow, 9).Value = r.Neighborhood;
+                worksheet.Cell(currentRow, 10).Value = r.UFDest;
 
                 currentRow++;
             }
+
+            worksheet.Columns().AdjustToContents();
         }
+
 
         private void ViewLog_Click(object sender, RoutedEventArgs e)
         {

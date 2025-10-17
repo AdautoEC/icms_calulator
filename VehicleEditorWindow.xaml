@@ -15,6 +15,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Placa" Binding="{Binding Placa}" Width="*"/>
                 <DataGridTextColumn Header="Renavam" Binding="{Binding Renavam}" Width="*"/>
+                <DataGridTextColumn Header="Modelo" Binding="{Binding Modelo}" Width="2*"/>
                 <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="2*"/>
             </DataGrid.Columns>
         </DataGrid>

@@ -63,11 +63,13 @@ O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pi
 
 - **`Record0150`** (Participante): `codigo`, `nome`, `logradouro`, `bairro`, `municipio`, `uf`, `cep`, `cnpjCpf`, `ie`.
 - **`RecordC100`** (Documento Fiscal): `chNFe`, `cod_part` (link a 0150), `cod_mod`, `serie`, `num_doc`, `dt_doc`, `vl_doc`, etc.
+- **`RecordC190`** (Registro Analítico): `CST`, `CFOP`, `ValorIcms`, `BaseIcms`, `TotalDocumento`.
 - **`MdfeEvent`**: `seq`, `chNFe`, `timestamp`, `placa`, (opcional: origem/destino se constarem).
 - **`Entrega`** (entidade correlacionada): `ordem`, `chNFe`, `participanteCodigo`, `endereco`, `lat`, `lon`, `data`, `kmAcumulado`.
 - **`Coordinate`**: `lat`, `lon`.
 - **`GeoResult`**: `input` (endereço), `lat`, `lon`, `precision`, `provider`.
 - **`RouteStats`**: `totalKm`, `tempoEstimado`, `paradas`, `outliers`.
+- **`VehicleInfo`**: `Placa`, `Renavam`, `Modelo`, `Tipo`.
 
 > **Dica**: No inventário automático (seção 10) liste classes e interfaces reais e alinhe com estes modelos.
 
@@ -76,11 +78,11 @@ O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pi
 ## 5) Pipeline de Processamento
 
 1. **Ingestão**: localizar arquivos `*.txt` (SPED), `*.xml` (MDFe/NFe).  
-2. **Parsing**: converter cada linha/registro em objetos.  
-3. **Correlação**: usar `chNFe` (MDFe) para encontrar `C100` e, dele, o `cod_part` para puxar o `0150`.  
+2. **Parsing**: converter cada linha/registro em objetos. O parser do SPED agora também processa e armazena os registros `C190`.
+3. **Correlação**: usar `chNFe` (MDFe) para encontrar `C100` e, dele, o `cod_part` para puxar o `0150`. Os dados do `C190` são associados ao `C100` correspondente.
 4. **Geocodificação**: montar string de endereço canônica → `(lat, lon)`.  
 5. **Cálculo de Distâncias**: aplicar Haversine entre entregas sequenciais.  
-6. **Exportação**: salvar CSV por **entregas** e relatório consolidado (km, tempos, cobertura).  
+6. **Exportação**: salvar CSV por **entregas** e relatório consolidado (km, tempos, cobertura). Agora também exporta um relatório de conferência detalhado.
 7. **Logs e Erros**: rastrear por arquivo e por registro (linha n°, chaves).
 
 ---
@@ -150,12 +152,24 @@ Registra quaisquer problemas encontrados durante o processamento.
 - **`chave`**: Chave primária ou identificador do registro com erro.
 - **`motivo`**: Descrição clara e concisa do erro.
 
+### `conferencia.csv` (Novo Relatório)
+- **`ChaveNFe`**: Chave de acesso da Nota Fiscal Eletrônica.
+- **`CST`**: Código da Situação Tributária.
+- **`CFOP`**: Código Fiscal de Operações e Prestações.
+- **`ValorIcms`**: Valor do ICMS.
+- **`BaseIcms`**: Base de cálculo do ICMS.
+- **`TotalDocumento`**: Valor total do documento.
+- **`Rua`**: Rua do destinatário.
+- **`Numero`**: Número do endereço do destinatário.
+- **`Bairro`**: Bairro do destinatário.
+- **`UF`**: UF do destinatário.
+
 ---
 
 ## 8) UI (Quando Aplicável)
 
-- **Desktop (WPF/WinUI/.NET)**: seleção de arquivos, status de parsing, preview, filtros, botão **Exportar CSV**.  
-- **Contadores/BI**: sumários (km total, nº entregas, outliers), gráficos de barras/linha e mapa (se disponível).
+- **Desktop (WPF/WinUI/.NET)**: seleção de arquivos, status de parsing, preview, filtros, botão **Exportar CSV**. A tela principal agora exibe uma única linha com dados somados.
+- **Contadores/BI**: sumários (km total, nº entregas, outliers), gráficos de barras/linha e mapa (se disponível). Os pop-ups do mapa agora mostram detalhes de cada registro C190.
 
 ---
 

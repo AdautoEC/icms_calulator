@@ -14,15 +14,21 @@ namespace CsvIntegratorApp.Services
         private static readonly Dictionary<string, (int? codMun, string? street, string? number, string? neighborhood, string? nome)> _mapPartes =
             new(StringComparer.OrdinalIgnoreCase);
 
+        // chNFe -> C190 data
+        private static readonly Dictionary<string, List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>> _mapChaveParaC190 = new(StringComparer.OrdinalIgnoreCase);
+
         private static bool _loaded;
 
         public static void LoadTxt(string path)
         {
             _mapChaveParaPart.Clear();
             _mapPartes.Clear();
+            _mapChaveParaC190.Clear();
             _loaded = false;
 
             if (!File.Exists(path)) return;
+
+            string? lastChNFe = null;
 
             foreach (var raw in File.ReadLines(path))
             {
@@ -42,9 +48,31 @@ namespace CsvIntegratorApp.Services
                     // procura a primeira coluna com 44 dígitos como chave
                     string? ch = cols.FirstOrDefault(c => c != null && c.Length == 44 && c.All(char.IsDigit));
 
-                    if (!string.IsNullOrWhiteSpace(ch) && !string.IsNullOrWhiteSpace(codPart))
+                    if (!string.IsNullOrWhiteSpace(ch))
                     {
-                        _mapChaveParaPart[Clean(ch)] = codPart.Trim();
+                        lastChNFe = Clean(ch);
+                        if (!string.IsNullOrWhiteSpace(codPart))
+                        {
+                            _mapChaveParaPart[lastChNFe] = codPart.Trim();
+                        }
+                    }
+                }
+                else if (reg == "C190")
+                {
+                    if (lastChNFe != null)
+                    {
+                        // |C190|CST|CFOP|ALIQ_ICMS|VL_OPR|VL_BC_ICMS|VL_ICMS|...
+                        string? cst = cols.Length > 2 ? cols[2] : null;
+                        string? cfop = cols.Length > 3 ? cols[3] : null;
+                        decimal? totalDocumento = cols.Length > 5 && decimal.TryParse(cols[5], out var val) ? val : null;
+                        decimal? baseIcms = cols.Length > 6 && decimal.TryParse(cols[6], out var val2) ? val2 : null;
+                        decimal? valorIcms = cols.Length > 7 && decimal.TryParse(cols[7], out var val3) ? val3 : null;
+
+                        if (!_mapChaveParaC190.ContainsKey(lastChNFe))
+                        {
+                            _mapChaveParaC190[lastChNFe] = new List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>();
+                        }
+                        _mapChaveParaC190[lastChNFe].Add((cst, cfop, valorIcms, baseIcms, totalDocumento));
                     }
                 }
                 else if (reg == "0150")
@@ -84,6 +112,15 @@ namespace CsvIntegratorApp.Services
             }
 
             return false;
+        }
+
+        public static bool TryGetC190InfoPorChave(string? chNFe, out List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)> c190Info)
+        {
+            c190Info = null;
+            if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
+
+            var ch = Clean(chNFe);
+            return _mapChaveParaC190.TryGetValue(ch, out c190Info);
         }
 
         private static string Clean(string s)

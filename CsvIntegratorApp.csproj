@@ -11,5 +11,10 @@
 	<ItemGroup>
 	  <PackageReference Include="ClosedXML" Version="0.105.0" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Content Include="modelo_para_exportar.xlsx">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	</ItemGroup>
 </Project>
 

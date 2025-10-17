@@ -120,6 +120,7 @@ namespace CsvIntegratorApp.Services
             double totalKm = 0;
             var allWarnings = new List<string>(initialWarnings);
             var fullPolyline = new List<List<double>>();
+            var allLegs = new List<double>();
 
             const int chunkSize = 69;
             for (int i = 0; i < allWaypoints.Count - 1; i += chunkSize)
@@ -132,6 +133,7 @@ namespace CsvIntegratorApp.Services
                 if (chunkResult.TotalKm.HasValue)
                 {
                     totalKm += chunkResult.TotalKm.Value;
+                    allLegs.AddRange(chunkResult.LegsKm);
                     if (chunkResult.Polyline.Any())
                     {
                         fullPolyline.AddRange(fullPolyline.Any() ? chunkResult.Polyline.Skip(1) : chunkResult.Polyline);
@@ -144,7 +146,9 @@ namespace CsvIntegratorApp.Services
                     allWarnings.Add(errorMsg);
                     for (int j = 0; j < chunkWaypoints.Count - 1; j++) 
                     { 
-                        totalKm += HaversineKm(chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon, chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon); 
+                        var legKm = HaversineKm(chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon, chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon);
+                        totalKm += legKm;
+                        allLegs.Add(legKm);
                         if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon });
                         fullPolyline.Add(new List<double> { chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon });
                     }
@@ -154,6 +158,7 @@ namespace CsvIntegratorApp.Services
             return new RouteResult
             {
                 TotalKm = Math.Round(totalKm, 1),
+                LegsKm = allLegs,
                 Used = "OpenRouteService (chunked)",
                 Error = allWarnings.Any() ? string.Join("; ", allWarnings) : null,
                 Polyline = fullPolyline,
@@ -176,9 +181,27 @@ namespace CsvIntegratorApp.Services
                     polyline = feature.Geometry.Coordinates.Select(p => new List<double> { p[1], p[0] }).ToList();
                 }
 
+                var legs = new List<double>();
+                if (feature.Properties?.Segments != null)
+                {
+                    foreach (var segment in feature.Properties.Segments)
+                    {
+                        double segmentDistance = 0;
+                        if (segment.Steps != null)
+                        {
+                            foreach (var step in segment.Steps)
+                            {
+                                segmentDistance += step.Distance;
+                            }
+                        }
+                        legs.Add(Math.Round(segmentDistance / 1000.0, 1));
+                    }
+                }
+
                 return new RouteResult
                 {
                     TotalKm = Math.Round(summary.Distance / 1000.0, 1),
+                    LegsKm = legs,
                     Used = "OpenRouteService",
                     Error = warnings.Any() ? string.Join("; ", warnings) : null,
                     Polyline = polyline,
@@ -188,9 +211,12 @@ namespace CsvIntegratorApp.Services
             
             double totalKm = 0;
             var fallbackPolyline = new List<List<double>>();
+            var fallbackLegs = new List<double>();
             for(int i = 0; i < coords.Count - 1; i++)
             {
-                totalKm += HaversineKm(coords[i].Lat, coords[i].Lon, coords[i+1].Lat, coords[i+1].Lon);
+                var legKm = HaversineKm(coords[i].Lat, coords[i].Lon, coords[i+1].Lat, coords[i+1].Lon);
+                totalKm += legKm;
+                fallbackLegs.Add(legKm);
                 if (i == 0) fallbackPolyline.Add(new List<double> { coords[i].Lat, coords[i].Lon });
                 fallbackPolyline.Add(new List<double> { coords[i+1].Lat, coords[i+1].Lon });
             }
@@ -198,6 +224,7 @@ namespace CsvIntegratorApp.Services
             return new RouteResult 
             {
                 TotalKm = totalKm,
+                LegsKm = fallbackLegs,
                 Used = "Haversine (fallback)",
                 Error = "Não foi possível obter a rota da API. Usando cálculo de linha reta.",
                 Polyline = fallbackPolyline,

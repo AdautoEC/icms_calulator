@@ -5,6 +5,7 @@ namespace CsvIntegratorApp.Models
     {
         public string? Placa { get; set; }
         public string? Renavam { get; set; }
+        public string? Modelo { get; set; }
         public string? Tipo { get; set; }
     }
 }

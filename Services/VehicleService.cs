@@ -53,14 +53,14 @@ namespace CsvIntegratorApp.Services
             File.WriteAllText(DbPath, json);
         }
 
-        public static string? GetVehicleType(string? placa, string? renavam)
+        public static VehicleInfo? GetVehicleInfo(string? placa, string? renavam)
         {
             if (string.IsNullOrWhiteSpace(placa) || string.IsNullOrWhiteSpace(renavam)) return null;
             if (!_loaded) LoadVehicles();
 
             return _vehicles.FirstOrDefault(v => 
                 v.Placa?.Equals(placa, StringComparison.OrdinalIgnoreCase) == true && 
-                v.Renavam?.Equals(renavam, StringComparison.OrdinalIgnoreCase) == true)?.Tipo;
+                v.Renavam?.Equals(renavam, StringComparison.OrdinalIgnoreCase) == true);
         }
     }
 }

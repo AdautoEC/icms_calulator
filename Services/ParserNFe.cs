@@ -10,7 +10,7 @@ namespace CsvIntegratorApp.Services
 {
     public class NfeParsedItem
     {
-        // Cabeçalho
+        // Cabeï¿½alho
         public string? ChaveNFe { get; set; }
         public string? NumeroNFe { get; set; }
         public string? Serie { get; set; }
@@ -19,11 +19,14 @@ namespace CsvIntegratorApp.Services
         // Emitente
         public string? EmitCNPJ { get; set; }
         public string? EmitNome { get; set; }
+        public string? EmitStreet { get; set; }
+        public string? EmitNumber { get; set; }
+        public string? EmitNeighborhood { get; set; }
         public string? UFEmit { get; set; }
         public string? CidadeEmit { get; set; }
         public int? CMunEmit { get; set; }
 
-        // Destinatário
+        // Destinatï¿½rio
         public string? DestCNPJ { get; set; }
         public string? DestNome { get; set; }
         public string? UFDest { get; set; }
@@ -41,7 +44,7 @@ namespace CsvIntegratorApp.Services
         public double? ValorUnitario { get; set; }
         public double? ValorTotal { get; set; }
 
-        // Combustível
+        // Combustï¿½vel
         public string? ProdANP { get; set; }
         public string? DescANP { get; set; }
         public string? UFConsumo { get; set; }
@@ -75,6 +78,9 @@ namespace CsvIntegratorApp.Services
             var emit = doc.Descendants(ns + "emit").FirstOrDefault();
             string? emitCNPJ = emit?.Element(ns + "CNPJ")?.Value;
             string? emitNome = emit?.Element(ns + "xNome")?.Value;
+            string? emitStreet = emit?.Element(ns + "enderEmit")?.Element(ns + "xLgr")?.Value;
+            string? emitNumber = emit?.Element(ns + "enderEmit")?.Element(ns + "nro")?.Value;
+            string? emitNeighborhood = emit?.Element(ns + "enderEmit")?.Element(ns + "xBairro")?.Value;
             string? ufEmit = emit?.Element(ns + "enderEmit")?.Element(ns + "UF")?.Value;
             string? xMunEmit = emit?.Element(ns + "enderEmit")?.Element(ns + "xMun")?.Value;
             int? cMunEmit = TryInt(emit?.Element(ns + "enderEmit")?.Element(ns + "cMun")?.Value);
@@ -125,6 +131,9 @@ namespace CsvIntegratorApp.Services
 
                     EmitCNPJ = emitCNPJ,
                     EmitNome = emitNome,
+                    EmitStreet = emitStreet,
+                    EmitNumber = emitNumber,
+                    EmitNeighborhood = emitNeighborhood,
                     UFEmit = ufEmit,
                     CidadeEmit = xMunEmit,
                     CMunEmit = cMunEmit,
@@ -164,6 +173,9 @@ namespace CsvIntegratorApp.Services
                     DataEmissao = dhEmi,
                     EmitCNPJ = emitCNPJ,
                     EmitNome = emitNome,
+                    EmitStreet = emitStreet,
+                    EmitNumber = emitNumber,
+                    EmitNeighborhood = emitNeighborhood,
                     UFEmit = ufEmit,
                     CidadeEmit = xMunEmit,
                     CMunEmit = cMunEmit,

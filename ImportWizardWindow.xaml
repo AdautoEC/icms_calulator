@@ -51,6 +51,7 @@
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
       <Button x:Name="ViewLogButton" Content="Ver Log de Cálculo" Width="140" Click="ViewLog_Click" IsEnabled="False" Margin="0,0,8,0"/>
       <Button x:Name="ViewRouteButton" Content="Visualizar Rota" Width="140" Click="ViewRoute_Click" IsEnabled="False" Margin="0,0,8,0"/>
+      <Button Content="Exportar Conferência" Width="160" Click="ExportConferencia_Click" Margin="0,0,8,0"/>
       <Button Content="Exportar Excel" Width="140" Click="ExportExcel_Click" />
     </StackPanel>
   </Grid>

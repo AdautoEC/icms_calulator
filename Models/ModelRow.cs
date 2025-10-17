@@ -41,5 +41,22 @@ namespace CsvIntegratorApp.Models
         public string? UFDest { get; set; }
         public string? CidadeEmit { get; set; }
         public string? CidadeDest { get; set; }
+
+        // C190
+        public string? Cst { get; set; }
+        public string? Cfop { get; set; }
+        public decimal? ValorIcms { get; set; }
+        public decimal? BaseIcms { get; set; }
+        public decimal? TotalDocumento { get; set; }
+
+        // Address
+        public string? Street { get; set; }
+        public string? Number { get; set; }
+        public string? Neighborhood { get; set; }
+
+        // Fornecedor
+        public string? FornecedorCnpj { get; set; }
+        public string? FornecedorNome { get; set; }
+        public string? FornecedorEndereco { get; set; }
     }
 }

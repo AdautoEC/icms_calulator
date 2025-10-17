@@ -12,7 +12,7 @@ namespace CsvIntegratorApp.Services
     {
         public static string? LastGeneratedMapPath { get; private set; }
 
-        public static void GenerateRouteMap(List<List<double>>? polyline, List<WaypointInfo>? waypoints, string fileName = "rota.html")
+        public static void GenerateRouteMap(List<List<double>>? polyline, List<WaypointInfo>? waypoints, List<ModelRow> modelRows, string fileName = "rota.html")
         {
             if (polyline == null || polyline.Count < 2)
             {
@@ -26,12 +26,25 @@ namespace CsvIntegratorApp.Services
             var waypointsJs = "[]";
             if (waypoints != null && waypoints.Any())
             {
-                var waypointsData = waypoints.Select(w => new
+                var waypointsData = waypoints.Select(w =>
                 {
-                    lat = w.Coordinates.Lat,
-                    lon = w.Coordinates.Lon,
-                    address = w.Address,
-                    invoice = w.InvoiceNumber
+                    var c190Rows = modelRows.Where(r => r.ChaveNFe == w.InvoiceNumber).ToList();
+                    var c190Data = c190Rows.Select(r => new {
+                        cst = r.Cst,
+                        cfop = r.Cfop,
+                        valorIcms = r.ValorIcms,
+                        baseIcms = r.BaseIcms,
+                        totalDocumento = r.TotalDocumento
+                    }).ToList();
+
+                    return new
+                    {
+                        lat = w.Coordinates.Lat,
+                        lon = w.Coordinates.Lon,
+                        address = w.Address,
+                        invoice = w.InvoiceNumber,
+                        c190Data = c190Data
+                    };
                 }).ToList();
                 waypointsJs = JsonSerializer.Serialize(waypointsData);
             }
@@ -63,6 +76,18 @@ namespace CsvIntegratorApp.Services
             html.AppendLine("        var waypoint = waypoints[i];");
             html.AppendLine("        var marker = L.marker([waypoint.lat, waypoint.lon]).addTo(map);");
             html.AppendLine("        var popupContent = '<b>' + waypoint.invoice + '</b><br>' + waypoint.address;");
+            html.AppendLine("        if (waypoint.c190Data && waypoint.c190Data.length > 0) {");
+            html.AppendLine("            popupContent += '<hr>';");
+            html.AppendLine("            for (var j = 0; j < waypoint.c190Data.length; j++) {");
+            html.AppendLine("                var c190 = waypoint.c190Data[j];");
+            html.AppendLine("                if (c190.cst) { popupContent += '<br>CST: ' + c190.cst; }");
+            html.AppendLine("                if (c190.cfop) { popupContent += '<br>CFOP: ' + c190.cfop; }");
+            html.AppendLine("                if (c190.valorIcms) { popupContent += '<br>Valor ICMS: ' + c190.valorIcms; }");
+            html.AppendLine("                if (c190.baseIcms) { popupContent += '<br>Base ICMS: ' + c190.baseIcms; }");
+            html.AppendLine("                if (c190.totalDocumento) { popupContent += '<br>Total Documento: ' + c190.totalDocumento; }");
+            html.AppendLine("                if (j < waypoint.c190Data.length - 1) { popupContent += '<hr>'; }");
+            html.AppendLine("            }");
+            html.AppendLine("        }");
             html.AppendLine("        marker.bindPopup(popupContent);");
             html.AppendLine("    }");
 
