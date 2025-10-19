@@ -251,13 +251,12 @@ namespace CsvIntegratorApp
             worksheet.Cell("B7").Value = "Data de Entrada";
             worksheet.Cell("C7").Value = "N° Nota Fiscal";
             worksheet.Cell("D7").Value = "Fornecedor";
-            worksheet.Cell("G7").Value = "Endereço";
-            worksheet.Cell("H7").Value = "Produto";
-            worksheet.Cell("I7").Value = "Categoria";
-            worksheet.Cell("J7").Value = "Quantidade (Litros)";
-            worksheet.Cell("K7").Value = "Valor Unitário";
-            worksheet.Cell("L7").Value = "Valor total";
-            worksheet.Cell("M7").Value = "Chave de Acesso";
+            worksheet.Cell("F7").Value = "Endereço";
+            worksheet.Cell("G7").Value = "Produto";
+            worksheet.Cell("H7").Value = "Categoria";
+            worksheet.Cell("I7").Value = "Quantidade (Litros)";
+            worksheet.Cell("J7").Value = "Valor Unitário";
+            worksheet.Cell("K7").Value = "Valor total";
 
             worksheet.Cell("D8").Value = "CNPJ";
             worksheet.Cell("E8").Value = "Razão Social";
@@ -271,19 +270,19 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 3).Value = row.NFeNumero;
                 worksheet.Cell(currentRow, 4).Value = row.FornecedorCnpj;
                 worksheet.Cell(currentRow, 5).Value = row.FornecedorNome;
-                worksheet.Cell(currentRow, 7).Value = row.FornecedorEndereco;
-                worksheet.Cell(currentRow, 8).Value = row.EspecieCombustivel;
+                worksheet.Cell(currentRow, 6).Value = row.FornecedorEndereco;
+                worksheet.Cell(currentRow, 7).Value = row.EspecieCombustivel;
                 // Categoria is not in ModelRow
-                worksheet.Cell(currentRow, 10).Value = row.QuantidadeLitros;
-                worksheet.Cell(currentRow, 11).Value = row.ValorUnitario;
-                worksheet.Cell(currentRow, 12).Value = row.ValorTotalCombustivel;
-                worksheet.Cell(currentRow, 13).Value = row.ChaveNFe;
+                worksheet.Cell(currentRow, 9).Value = row.QuantidadeLitros;
+                worksheet.Cell(currentRow, 10).Value = row.ValorUnitario;
+                worksheet.Cell(currentRow, 11).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 12).Value = row.ChaveNFe;
                 currentRow++;
             }
 
             if (dieselRows.Any())
             {
-                var range = worksheet.Range(9, 1, currentRow - 1, 13);
+                var range = worksheet.Range(9, 1, currentRow - 1, 12);
                 range.Style.Border.SetOutsideBorder(XLBorderStyleValues.Thin);
                 range.Style.Border.SetInsideBorder(XLBorderStyleValues.Thin);
             }
