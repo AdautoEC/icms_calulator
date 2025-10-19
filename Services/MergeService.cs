@@ -80,8 +80,31 @@ namespace CsvIntegratorApp.Services
                     CalculationLogService.Log($"Nenhuma NF-e de combustível correspondente encontrada para o MDF-e {h.NumeroMdf}.");
                 }
 
-                var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct();
+                var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct().ToList();
                 modelRow.NFeCargaNumero = string.Join(", ", nfeKeys);
+
+                var firstCargoNfeKey = nfeKeys.FirstOrDefault();
+                if (firstCargoNfeKey != null)
+                {
+                    if (porChave.TryGetValue(firstCargoNfeKey, out var cargoNfe))
+                    {
+                        modelRow.NFeNumero = cargoNfe.NumeroNFe;
+                        modelRow.DataEmissao = cargoNfe.DataEmissao;
+                    }
+                    else
+                    {
+                        if (firstCargoNfeKey.Length == 44)
+                        {
+                            try { modelRow.NFeNumero = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
+                        }
+
+                        if (SpedTxtLookupService.TryGetC100DataPorChave(firstCargoNfeKey, out var dt))
+                        {
+                            modelRow.DataEmissao = dt;
+                        }
+                    }
+                }
+
                 modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("g") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
 
                 modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
@@ -240,13 +263,13 @@ namespace CsvIntegratorApp.Services
 
         private static void EnriquecerComNfe(ModelRow r, NfeParsedItem n)
         {
-            r.NFeNumero = n.NumeroNFe;
-            r.DataEmissao = n.DataEmissao;
             r.QuantidadeLitros = n.Quantidade;
             r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto;
             r.ValorUnitario = n.ValorUnitario;
             r.ValorTotalCombustivel = n.ValorTotal;
             r.ValorCredito = n.Credito;
+            r.NFeAquisicaoNumero = n.NumeroNFe;
+            r.DataAquisicao = n.DataEmissao;
         }
 
         private static string? MapTipo(string? tpRod, string? tpCar)

@@ -199,8 +199,8 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 6).Value = row.Data;
                 worksheet.Cell(currentRow, 7).Value = row.Roteiro;
                 worksheet.Cell(currentRow, 8).Value = row.DistanciaPercorridaKm;
-                worksheet.Cell(currentRow, 9).Value = row.NFeNumero;
-                worksheet.Cell(currentRow, 10).Value = row.DataEmissao;
+                worksheet.Cell(currentRow, 9).Value = row.NFeCargaNumero;
+                worksheet.Cell(currentRow, 10).Value = row.DataEmissaoCarga;
                 worksheet.Cell(currentRow, 11).Value = row.QuantidadeLitros;
                 worksheet.Cell(currentRow, 12).Value = row.EspecieCombustivel;
                 worksheet.Cell(currentRow, 13).Value = row.ValorUnitario;
