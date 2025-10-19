@@ -6,37 +6,37 @@ namespace CsvIntegratorApp.Models.OpenRouteService
     public class DirectionsResponse
     {
         [JsonPropertyName("features")]
-        public List<RouteFeature> Features { get; set; }
+        public List<RouteFeature>? Features { get; set; }
     }
 
     public class RouteFeature
     {
         [JsonPropertyName("properties")]
-        public RouteProperties Properties { get; set; }
+        public RouteProperties? Properties { get; set; }
 
         [JsonPropertyName("geometry")]
-        public RouteGeometry Geometry { get; set; }
+        public RouteGeometry? Geometry { get; set; }
     }
 
     public class RouteGeometry
     {
         [JsonPropertyName("coordinates")]
-        public List<List<double>> Coordinates { get; set; }
+        public List<List<double>>? Coordinates { get; set; }
     }
 
     public class RouteProperties
     {
         [JsonPropertyName("segments")]
-        public List<RouteSegment> Segments { get; set; }
+        public List<RouteSegment>? Segments { get; set; }
 
         [JsonPropertyName("summary")]
-        public RouteSummary Summary { get; set; }
+        public RouteSummary? Summary { get; set; }
     }
 
     public class RouteSegment
     {
         [JsonPropertyName("steps")]
-        public List<RouteStep> Steps { get; set; }
+        public List<RouteStep>? Steps { get; set; }
     }
 
     public class RouteStep

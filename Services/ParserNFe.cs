@@ -10,7 +10,7 @@ namespace CsvIntegratorApp.Services
 {
     public class NfeParsedItem
     {
-        // Cabe�alho
+        // Cabeçalho
         public string? ChaveNFe { get; set; }
         public string? NumeroNFe { get; set; }
         public string? Serie { get; set; }
@@ -26,7 +26,7 @@ namespace CsvIntegratorApp.Services
         public string? CidadeEmit { get; set; }
         public int? CMunEmit { get; set; }
 
-        // Destinat�rio
+        // Destinatário
         public string? DestCNPJ { get; set; }
         public string? DestNome { get; set; }
         public string? UFDest { get; set; }
@@ -43,8 +43,9 @@ namespace CsvIntegratorApp.Services
         public double? Quantidade { get; set; }
         public double? ValorUnitario { get; set; }
         public double? ValorTotal { get; set; }
+        public double? Credito { get; set; }
 
-        // Combust�vel
+        // Combustível
         public string? ProdANP { get; set; }
         public string? DescANP { get; set; }
         public string? UFConsumo { get; set; }
@@ -61,11 +62,15 @@ namespace CsvIntegratorApp.Services
             XDocument doc = XDocument.Load(xmlPath);
             XNamespace ns = "http://www.portalfiscal.inf.br/nfe";
 
-            string? chave = doc.Descendants(ns + "infNFe").Attributes("Id").Select(a => a.Value).FirstOrDefault();
-            if (!string.IsNullOrEmpty(chave) && chave.StartsWith("NFe", StringComparison.OrdinalIgnoreCase))
-                chave = chave.Substring(3);
+            string? chave = doc.Descendants(ns + "chNFe").Select(x => x.Value).FirstOrDefault();
             if (string.IsNullOrEmpty(chave))
-                chave = doc.Descendants(ns + "chNFe").Select(x => x.Value).FirstOrDefault();
+            {
+                chave = doc.Descendants(ns + "infNFe").Attributes("Id").Select(a => a.Value).FirstOrDefault();
+                if (!string.IsNullOrEmpty(chave) && chave.StartsWith("NFe", StringComparison.OrdinalIgnoreCase))
+                {
+                    chave = chave.Substring(3);
+                }
+            }
 
             var ide = doc.Descendants(ns + "ide").FirstOrDefault();
             string? nNF = ide?.Element(ns + "nNF")?.Value;
@@ -110,6 +115,7 @@ namespace CsvIntegratorApp.Services
                 double? qCom = TryD(prod?.Element(ns + "qCom")?.Value);
                 double? vUn = TryD(prod?.Element(ns + "vUnCom")?.Value);
                 double? vProd = TryD(prod?.Element(ns + "vProd")?.Value);
+                double? credito = vProd * 0.17;
 
                 var comb = prod?.Element(ns + "comb");
                 string? cProdANP = comb?.Element(ns + "cProdANP")?.Value;
@@ -153,6 +159,7 @@ namespace CsvIntegratorApp.Services
                     Quantidade = qCom,
                     ValorUnitario = vUn,
                     ValorTotal = vProd,
+                    Credito = credito,
 
                     ProdANP = cProdANP,
                     DescANP = descANP ?? xProd,
@@ -196,7 +203,7 @@ namespace CsvIntegratorApp.Services
             => int.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
 
         static double? TryD(string? s)
-            => double.TryParse((s ?? "").Replace(",", "."), NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : null;
+            => double.TryParse((s ?? "").Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) ? v : null;
 
         static string? TryFindPlaca(string? text)
         {

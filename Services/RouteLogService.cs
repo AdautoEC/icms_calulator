@@ -10,15 +10,14 @@ namespace CsvIntegratorApp.Services
 {
     public static class RouteLogService
     {
-        public static string? LastGeneratedMapPath { get; private set; }
-
-        public static void GenerateRouteMap(List<List<double>>? polyline, List<WaypointInfo>? waypoints, List<ModelRow> modelRows, string fileName = "rota.html")
+        public static string? GenerateRouteMap(List<List<double>>? polyline, List<WaypointInfo>? waypoints, List<ModelRow> modelRows)
         {
             if (polyline == null || polyline.Count < 2)
             {
-                LastGeneratedMapPath = null;
-                return;
+                return null;
             }
+
+            var fileName = $"rota_{Guid.NewGuid()}.html";
 
             var ci = CultureInfo.InvariantCulture;
             var pointsJs = string.Join(",", polyline.Select(p => $"[{p[0].ToString(ci)}, {p[1].ToString(ci)}]"));
@@ -26,26 +25,30 @@ namespace CsvIntegratorApp.Services
             var waypointsJs = "[]";
             if (waypoints != null && waypoints.Any())
             {
-                var waypointsData = waypoints.Select(w =>
+                var waypointsData = new List<object>();
+                foreach (var w in waypoints)
                 {
-                    var c190Rows = modelRows.Where(r => r.ChaveNFe == w.InvoiceNumber).ToList();
-                    var c190Data = c190Rows.Select(r => new {
-                        cst = r.Cst,
-                        cfop = r.Cfop,
-                        valorIcms = r.ValorIcms,
-                        baseIcms = r.BaseIcms,
-                        totalDocumento = r.TotalDocumento
-                    }).ToList();
-
-                    return new
+                    if (w.Coordinates.HasValue)
                     {
-                        lat = w.Coordinates.Lat,
-                        lon = w.Coordinates.Lon,
-                        address = w.Address,
-                        invoice = w.InvoiceNumber,
-                        c190Data = c190Data
-                    };
-                }).ToList();
+                        var c190Rows = modelRows.Where(r => r.ChaveNFe == w.InvoiceNumber).ToList();
+                        var c190Data = c190Rows.Select(r => new {
+                            cst = r.Cst,
+                            cfop = r.Cfop,
+                            valorIcms = r.ValorIcms,
+                            baseIcms = r.BaseIcms,
+                            totalDocumento = r.TotalDocumento
+                        }).ToList();
+
+                        waypointsData.Add(new
+                        {
+                            lat = w.Coordinates.Value.Lat,
+                            lon = w.Coordinates.Value.Lon,
+                            address = w.Address,
+                            invoice = w.InvoiceNumber,
+                            c190Data = c190Data
+                        });
+                    }
+                }
                 waypointsJs = JsonSerializer.Serialize(waypointsData);
             }
 
@@ -97,7 +100,7 @@ namespace CsvIntegratorApp.Services
 
             var filePath = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(filePath, html.ToString());
-            LastGeneratedMapPath = filePath;
+            return filePath;
         }
     }
 }

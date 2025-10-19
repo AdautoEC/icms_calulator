@@ -44,13 +44,41 @@
         <TextBlock x:Name="StatusText" Margin="16,0,0,0" VerticalAlignment="Center"/>
       </StackPanel>
 
-      <DataGrid x:Name="PreviewGrid" AutoGenerateColumns="True" Height="320" IsReadOnly="True" />
+      <DataGrid x:Name="PreviewGrid" AutoGenerateColumns="False" Height="320" IsReadOnly="True">
+        <DataGrid.Columns>
+          <DataGridTextColumn Header="Modelo" Binding="{Binding Modelo}"/>
+          <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}"/>
+          <DataGridTextColumn Header="Renavam" Binding="{Binding Renavam}"/>
+          <DataGridTextColumn Header="Placa" Binding="{Binding Placa}"/>
+          <DataGridTextColumn Header="MDF-e" Binding="{Binding MdfeNumero}"/>
+          <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat='g'}"/>
+          <DataGridTextColumn Header="Distância Percorrida (KM)" Binding="{Binding DistanciaPercorridaKm, StringFormat='N2'}"/>
+          <DataGridTextColumn Header="N° NF-e - Carga" Binding="{Binding NFeCargaNumero}"/>
+          <DataGridTextColumn Header="Data de Emissão - Carga" Binding="{Binding DataEmissaoCarga}"/>
+          <DataGridTextColumn Header="Qtd (LT)" Binding="{Binding QuantidadeLitros}"/>
+          <DataGridTextColumn Header="Qtd-Estimada(LT)" Binding="{Binding QuantidadeEstimadaLitros, StringFormat='N2'}"/>
+          <DataGridTextColumn Header="Combustível" Binding="{Binding EspecieCombustivel}"/>
+          <DataGridTextColumn Header="Valor Unitário" Binding="{Binding ValorUnitario, StringFormat='C'}"/>
+          <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='C'}"/>
+          <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='C'}"/>
+          <DataGridTextColumn Header="N° NF-e" Binding="{Binding NFeNumero}"/>
+          <DataGridTextColumn Header="Data de Emissão" Binding="{Binding DataEmissao, StringFormat='g'}"/>
+          <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo}"/>
+          <DataGridTemplateColumn Header="Mapa">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <Button Content="Ver Mapa" Click="ViewMap_Click" CommandParameter="{Binding MapPath}"/>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+        </DataGrid.Columns>
+      </DataGrid>
       <ProgressBar x:Name="LoadingIndicator" Height="10" Margin="0,5,0,0" IsIndeterminate="True" Visibility="Collapsed"/>
     </StackPanel>
 
     <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
       <Button x:Name="ViewLogButton" Content="Ver Log de Cálculo" Width="140" Click="ViewLog_Click" IsEnabled="False" Margin="0,0,8,0"/>
-      <Button x:Name="ViewRouteButton" Content="Visualizar Rota" Width="140" Click="ViewRoute_Click" IsEnabled="False" Margin="0,0,8,0"/>
+
       <Button Content="Exportar Conferência" Width="160" Click="ExportConferencia_Click" Margin="0,0,8,0"/>
       <Button Content="Exportar Excel" Width="140" Click="ExportExcel_Click" />
     </StackPanel>

@@ -77,6 +77,12 @@ namespace CsvIntegratorApp.Services
             var warnings = new List<string>();
             foreach (var waypoint in waypoints)
             {
+                if (string.IsNullOrWhiteSpace(waypoint.Address))
+                {
+                    warnings.Add("Endereço de waypoint vazio ignorado.");
+                    continue;
+                }
+
                 var c = await client.GeocodeAsync(waypoint.Address);
                 if (c is null || (c.Value.Lat == 0 && c.Value.Lon == 0))
                 {
@@ -88,7 +94,7 @@ namespace CsvIntegratorApp.Services
                 }
             }
 
-            var validWaypoints = waypoints.Where(w => w.Coordinates.Lat != 0 || w.Coordinates.Lon != 0).ToList();
+            var validWaypoints = waypoints.Where(w => w.Coordinates.HasValue && (w.Coordinates.Value.Lat != 0 || w.Coordinates.Value.Lon != 0)).ToList();
 
             if (validWaypoints.Count < 2) return new RouteResult { Error = "Pontos geocodificados insuficientes.", Waypoints = validWaypoints };
 
@@ -96,7 +102,7 @@ namespace CsvIntegratorApp.Services
             {
                 var first = validWaypoints.First();
                 var last = validWaypoints.Last();
-                if (first.Coordinates.Lat != last.Coordinates.Lat || first.Coordinates.Lon != last.Coordinates.Lon)
+                if (first.Coordinates.HasValue && last.Coordinates.HasValue && (first.Coordinates.Value.Lat != last.Coordinates.Value.Lat || first.Coordinates.Value.Lon != last.Coordinates.Value.Lon))
                 {
                     validWaypoints.Add(first);
                 }
@@ -146,11 +152,14 @@ namespace CsvIntegratorApp.Services
                     allWarnings.Add(errorMsg);
                     for (int j = 0; j < chunkWaypoints.Count - 1; j++) 
                     { 
-                        var legKm = HaversineKm(chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon, chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon);
-                        totalKm += legKm;
-                        allLegs.Add(legKm);
-                        if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { chunkWaypoints[j].Coordinates.Lat, chunkWaypoints[j].Coordinates.Lon });
-                        fullPolyline.Add(new List<double> { chunkWaypoints[j+1].Coordinates.Lat, chunkWaypoints[j+1].Coordinates.Lon });
+                        if (chunkWaypoints[j].Coordinates.HasValue && chunkWaypoints[j+1].Coordinates.HasValue)
+                        {
+                            var legKm = HaversineKm(chunkWaypoints[j].Coordinates.Value.Lat, chunkWaypoints[j].Coordinates.Value.Lon, chunkWaypoints[j+1].Coordinates.Value.Lat, chunkWaypoints[j+1].Coordinates.Value.Lon);
+                            totalKm += legKm;
+                            allLegs.Add(legKm);
+                            if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { chunkWaypoints[j].Coordinates.Value.Lat, chunkWaypoints[j].Coordinates.Value.Lon });
+                            fullPolyline.Add(new List<double> { chunkWaypoints[j+1].Coordinates.Value.Lat, chunkWaypoints[j+1].Coordinates.Value.Lon });
+                        }
                     }
                 }
             }
@@ -168,8 +177,18 @@ namespace CsvIntegratorApp.Services
 
         private static async Task<RouteResult> MakeSingleRouteRequestAsync(OpenRouteServiceClient client, List<WaypointInfo> waypoints, List<string> warnings)
         {
-            var coords = waypoints.Select(w => w.Coordinates).ToList();
-            var requestModel = new DirectionsRequest { Coordinates = coords.Select(c => new[] { c.Lon, c.Lat }).ToList() };
+            var validCoords = waypoints.Select(w => w.Coordinates).Where(c => c.HasValue).Select(c => c.Value).ToList();
+            if (validCoords.Count < 2)
+            {
+                return new RouteResult 
+                {
+                    Used = "Haversine (fallback)",
+                    Error = "Não há pontos válidos suficientes para traçar uma rota.",
+                    Waypoints = waypoints
+                };
+            }
+
+            var requestModel = new DirectionsRequest { Coordinates = validCoords.Select(c => new[] { c.Lon, c.Lat }).ToList() };
             var responseModel = await client.GetDirectionsAsync(requestModel);
 
             var feature = responseModel?.Features?.FirstOrDefault();
@@ -212,13 +231,13 @@ namespace CsvIntegratorApp.Services
             double totalKm = 0;
             var fallbackPolyline = new List<List<double>>();
             var fallbackLegs = new List<double>();
-            for(int i = 0; i < coords.Count - 1; i++)
+            for(int i = 0; i < validCoords.Count - 1; i++)
             {
-                var legKm = HaversineKm(coords[i].Lat, coords[i].Lon, coords[i+1].Lat, coords[i+1].Lon);
+                var legKm = HaversineKm(validCoords[i].Lat, validCoords[i].Lon, validCoords[i+1].Lat, validCoords[i+1].Lon);
                 totalKm += legKm;
                 fallbackLegs.Add(legKm);
-                if (i == 0) fallbackPolyline.Add(new List<double> { coords[i].Lat, coords[i].Lon });
-                fallbackPolyline.Add(new List<double> { coords[i+1].Lat, coords[i+1].Lon });
+                if (i == 0) fallbackPolyline.Add(new List<double> { validCoords[i].Lat, validCoords[i].Lon });
+                fallbackPolyline.Add(new List<double> { validCoords[i+1].Lat, validCoords[i+1].Lon });
             }
 
             return new RouteResult 

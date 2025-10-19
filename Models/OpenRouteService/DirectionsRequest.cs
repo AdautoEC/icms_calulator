@@ -6,6 +6,6 @@ namespace CsvIntegratorApp.Models.OpenRouteService
     public class DirectionsRequest
     {
         [JsonPropertyName("coordinates")]
-        public List<double[]> Coordinates { get; set; }
+        public List<double[]>? Coordinates { get; set; }
     }
 }

@@ -19,77 +19,80 @@ namespace CsvIntegratorApp.Services
 
         private static bool _loaded;
 
-        public static void LoadTxt(string path)
+        public static void LoadTxt(List<string> paths)
         {
             _mapChaveParaPart.Clear();
             _mapPartes.Clear();
             _mapChaveParaC190.Clear();
             _loaded = false;
 
-            if (!File.Exists(path)) return;
-
-            string? lastChNFe = null;
-
-            foreach (var raw in File.ReadLines(path))
+            foreach (var path in paths)
             {
-                if (string.IsNullOrWhiteSpace(raw)) continue;
-                if (raw[0] != '|' || raw.Length < 3) continue;
+                if (!File.Exists(path)) continue;
 
-                var cols = raw.Split('|'); // [0] vazio, [1]=registro
-                if (cols.Length < 2) continue;
+                string? lastChNFe = null;
 
-                var reg = cols[1];
-
-                if (reg == "C100")
+                foreach (var raw in File.ReadLines(path))
                 {
-                    // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|...
-                    string? codPart = cols.Length > 4 ? cols[4] : null;
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    if (raw[0] != '|' || raw.Length < 3) continue;
 
-                    // procura a primeira coluna com 44 dígitos como chave
-                    string? ch = cols.FirstOrDefault(c => c != null && c.Length == 44 && c.All(char.IsDigit));
+                    var cols = raw.Split('|'); // [0] vazio, [1]=registro
+                    if (cols.Length < 2) continue;
 
-                    if (!string.IsNullOrWhiteSpace(ch))
+                    var reg = cols[1];
+
+                    if (reg == "C100")
                     {
-                        lastChNFe = Clean(ch);
-                        if (!string.IsNullOrWhiteSpace(codPart))
+                        // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|...
+                        string? codPart = cols.Length > 4 ? cols[4] : null;
+
+                        // procura a primeira coluna com 44 dígitos como chave
+                        string? ch = cols.FirstOrDefault(c => c != null && c.Length == 44 && c.All(char.IsDigit));
+
+                        if (!string.IsNullOrWhiteSpace(ch))
                         {
-                            _mapChaveParaPart[lastChNFe] = codPart.Trim();
+                            lastChNFe = Clean(ch);
+                            if (!string.IsNullOrWhiteSpace(codPart))
+                            {
+                                _mapChaveParaPart[lastChNFe] = codPart.Trim();
+                            }
                         }
                     }
-                }
-                else if (reg == "C190")
-                {
-                    if (lastChNFe != null)
+                    else if (reg == "C190")
                     {
-                        // |C190|CST|CFOP|ALIQ_ICMS|VL_OPR|VL_BC_ICMS|VL_ICMS|...
-                        string? cst = cols.Length > 2 ? cols[2] : null;
-                        string? cfop = cols.Length > 3 ? cols[3] : null;
-                        decimal? totalDocumento = cols.Length > 5 && decimal.TryParse(cols[5], out var val) ? val : null;
-                        decimal? baseIcms = cols.Length > 6 && decimal.TryParse(cols[6], out var val2) ? val2 : null;
-                        decimal? valorIcms = cols.Length > 7 && decimal.TryParse(cols[7], out var val3) ? val3 : null;
-
-                        if (!_mapChaveParaC190.ContainsKey(lastChNFe))
+                        if (lastChNFe != null)
                         {
-                            _mapChaveParaC190[lastChNFe] = new List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>();
+                            // |C190|CST|CFOP|ALIQ_ICMS|VL_OPR|VL_BC_ICMS|VL_ICMS|...
+                            string? cst = cols.Length > 2 ? cols[2] : null;
+                            string? cfop = cols.Length > 3 ? cols[3] : null;
+                            decimal? totalDocumento = cols.Length > 5 && decimal.TryParse(cols[5], out var val) ? val : null;
+                            decimal? baseIcms = cols.Length > 6 && decimal.TryParse(cols[6], out var val2) ? val2 : null;
+                            decimal? valorIcms = cols.Length > 7 && decimal.TryParse(cols[7], out var val3) ? val3 : null;
+
+                            if (!_mapChaveParaC190.ContainsKey(lastChNFe))
+                            {
+                                _mapChaveParaC190[lastChNFe] = new List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>();
+                            }
+                            _mapChaveParaC190[lastChNFe].Add((cst, cfop, valorIcms, baseIcms, totalDocumento));
                         }
-                        _mapChaveParaC190[lastChNFe].Add((cst, cfop, valorIcms, baseIcms, totalDocumento));
                     }
-                }
-                else if (reg == "0150")
-                {
-                    // |0150|cod_part|nome|cod_pais|cnpj|cpf|ie|cod_mun|suframa|end|num|compl|bairro|
-                    string? codPart = cols.Length > 2 ? cols[2] : null;
-                    if (string.IsNullOrWhiteSpace(codPart)) continue;
+                    else if (reg == "0150")
+                    {
+                        // |0150|cod_part|nome|cod_pais|cnpj|cpf|ie|cod_mun|suframa|end|num|compl|bairro|
+                        string? codPart = cols.Length > 2 ? cols[2] : null;
+                        if (string.IsNullOrWhiteSpace(codPart)) continue;
 
-                    int? codMun = null;
-                    if (cols.Length > 8 && int.TryParse(cols[8], out var cm)) codMun = cm;
+                        int? codMun = null;
+                        if (cols.Length > 8 && int.TryParse(cols[8], out var cm)) codMun = cm;
 
-                    string? nome = cols.Length > 3 ? cols[3] : null;
-                    string? street = cols.Length > 10 ? cols[10] : null;
-                    string? number = cols.Length > 11 ? cols[11] : null;
-                    string? neighborhood = cols.Length > 13 ? cols[13] : null;
+                        string? nome = cols.Length > 3 ? cols[3] : null;
+                        string? street = cols.Length > 10 ? cols[10] : null;
+                        string? number = cols.Length > 11 ? cols[11] : null;
+                        string? neighborhood = cols.Length > 13 ? cols[13] : null;
 
-                    _mapPartes[codPart.Trim()] = (codMun, street, number, neighborhood, nome);
+                        _mapPartes[codPart.Trim()] = (codMun, street, number, neighborhood, nome);
+                    }
                 }
             }
 

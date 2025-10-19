@@ -18,9 +18,12 @@ namespace CsvIntegratorApp.Models
         // Carga / NF-e
         public string? NFeNumero { get; set; }
         public System.DateTime? DataEmissao { get; set; }
+        public string? NFeCargaNumero { get; set; }
+        public string? DataEmissaoCarga { get; set; }
 
         // Combustível
         public double? QuantidadeLitros { get; set; }
+        public double? QuantidadeEstimadaLitros { get; set; }
         public string? EspecieCombustivel { get; set; }   // DescANP/xProd
 
         // Valores
@@ -58,5 +61,7 @@ namespace CsvIntegratorApp.Models
         public string? FornecedorCnpj { get; set; }
         public string? FornecedorNome { get; set; }
         public string? FornecedorEndereco { get; set; }
+        public string? MapPath { get; set; }
+        public string? Vinculo { get; set; }
     }
 }
