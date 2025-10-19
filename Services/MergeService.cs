@@ -81,8 +81,8 @@ namespace CsvIntegratorApp.Services
                 }
 
                 var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct();
-                modelRow.NFeCargaNumero = string.Join(", ", nfeKeys.Select(k => porChave.TryGetValue(k, out var nfe) ? nfe.NumeroNFe : "").Where(n => !string.IsNullOrEmpty(n)));
-                modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => porChave.TryGetValue(k, out var nfe) ? nfe.DataEmissao?.ToString("g") : "").Where(n => !string.IsNullOrEmpty(n)));
+                modelRow.NFeCargaNumero = string.Join(", ", nfeKeys);
+                modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("g") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
 
                 modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
                 modelRow.Roteiro = routeResult.TotalKm.HasValue ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c))) : $"Falha no cálculo da rota: {routeResult.Error}";

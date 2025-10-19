@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Globalization;
 
 namespace CsvIntegratorApp.Services
 {
@@ -13,6 +14,9 @@ namespace CsvIntegratorApp.Services
         // COD_PART -> (COD_MUN, street, number, neighborhood, NOME)
         private static readonly Dictionary<string, (int? codMun, string? street, string? number, string? neighborhood, string? nome)> _mapPartes =
             new(StringComparer.OrdinalIgnoreCase);
+
+        // chNFe -> Data Emissão (C100)
+        private static readonly Dictionary<string, DateTime?> _mapChaveParaDataEmissao = new(StringComparer.OrdinalIgnoreCase);
 
         // chNFe -> C190 data
         private static readonly Dictionary<string, List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>> _mapChaveParaC190 = new(StringComparer.OrdinalIgnoreCase);
@@ -44,8 +48,9 @@ namespace CsvIntegratorApp.Services
 
                     if (reg == "C100")
                     {
-                        // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|...
+                        // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|dt_doc|...
                         string? codPart = cols.Length > 4 ? cols[4] : null;
+                        string? dtDocStr = cols.Length > 10 ? cols[10] : null;
 
                         // procura a primeira coluna com 44 dígitos como chave
                         string? ch = cols.FirstOrDefault(c => c != null && c.Length == 44 && c.All(char.IsDigit));
@@ -56,6 +61,11 @@ namespace CsvIntegratorApp.Services
                             if (!string.IsNullOrWhiteSpace(codPart))
                             {
                                 _mapChaveParaPart[lastChNFe] = codPart.Trim();
+                            }
+
+                            if (DateTime.TryParseExact(dtDocStr, "ddMMyyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dtDoc))
+                            {
+                                _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
                             }
                         }
                     }
@@ -124,6 +134,15 @@ namespace CsvIntegratorApp.Services
 
             var ch = Clean(chNFe);
             return _mapChaveParaC190.TryGetValue(ch, out c190Info);
+        }
+
+        public static bool TryGetC100DataPorChave(string? chNFe, out DateTime? dataEmissao)
+        {
+            dataEmissao = null;
+            if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
+
+            var ch = Clean(chNFe);
+            return _mapChaveParaDataEmissao.TryGetValue(ch, out dataEmissao);
         }
 
         private static string Clean(string s)
