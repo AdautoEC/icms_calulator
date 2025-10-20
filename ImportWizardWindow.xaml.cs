@@ -81,6 +81,10 @@ namespace CsvIntegratorApp
                 if (success)
                 {
                     _currentRows = mergedRows;
+                    foreach (var row in _currentRows)
+                    {
+                        row.IsInitialized = true;
+                    }
                     PreviewGrid.ItemsSource = null;
                     PreviewGrid.ItemsSource = _currentRows;
                     StatusText.Text = $"Processamento concluído: {_currentRows.Count} linha(s) gerada(s).";
@@ -181,6 +185,10 @@ namespace CsvIntegratorApp
                     if (rows != null)
                     {
                         _currentRows = rows;
+                        foreach (var row in _currentRows)
+                        {
+                            row.IsInitialized = true;
+                        }
                         PreviewGrid.ItemsSource = null;
                         PreviewGrid.ItemsSource = _currentRows;
                         StatusText.Text = $"Dados importados de {Path.GetFileName(dlg.FileName)}. {_currentRows.Count} linhas carregadas.";

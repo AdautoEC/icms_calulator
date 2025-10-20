@@ -10,27 +10,6 @@
         WindowStartupLocation="CenterScreen"
         Background="#F0F0F0">
 
-    <!-- 
-    DESIGN NOTES (atendendo a prompt_layout.txt):
-    1.  **Visibilidade do Status do Sistema (Nielsen #1)**: A área de "Status do Processamento" é proeminente, com uma barra de progresso e um TextBlock para mensagens claras.
-    2.  **Correspondência entre o Sistema e o Mundo Real (Nielsen #2)**: A linguagem é orientada a tarefas do usuário ("Selecionar Arquivos", "Processar", "Exportar").
-    3.  **Controle e Liberdade do Usuário (Nielsen #3)**: O usuário pode selecionar arquivos e iniciar/parar o processo. A interface não é modal até que uma ação demorada comece.
-    4.  **Consistência e Padrões (Nielsen #4)**: Usa controles padrão do Windows (Button, TextBox, DataGrid) e um layout consistente (margens, espaçamento).
-    5.  **Prevenção de Erros (Nielsen #5)**: A seleção de arquivos via "Procurar" previne erros de digitação. Botões são desabilitados durante o processamento.
-    6.  **Reconhecimento em Vez de Memorização (Nielsen #6)**: Os GroupBox e labels claros ajudam o usuário a reconhecer as funções sem precisar memorizar.
-    7.  **Flexibilidade e Eficiência de Uso (Nielsen #7)**: O layout se adapta a diferentes tamanhos de janela.
-    8.  **Estética e Design Minimalista (Nielsen #8)**: O design é limpo, com bom uso de espaço em branco e agrupamento lógico, sem informações irrelevantes.
-    9.  **Ajuda aos Usuários a Reconhecer, Diagnosticar e Recuperar-se de Erros (Nielsen #9)**: O "StatusText" e o log de cálculo (botão "Ver Log") são os mecanismos para isso.
-    10. **Ajuda e Documentação (Nielsen #10)**: A interface é projetada para ser autoexplicativa, minimizando a necessidade de documentação.
-
-    **WCAG 2.2 AA & Acessibilidade:**
-    -   **Contraste**: Cores (#000 no #FFF, #FFF no #0078D4) atendem ao ratio > 4.5:1.
-    -   **Foco Visível**: Estilos padrão do WPF para botões e outros controles já fornecem um bom indicador de foco.
-    -   **Navegação por Teclado**: A ordem dos elementos no XAML segue uma sequência lógica, permitindo navegação via Tab.
-    -   **Labels e Estados**: Controles interativos têm labels claras (TextBlock ou Content). AutomationProperties são usados onde necessário.
-    -   **Tamanho dos Alvos**: Botões e outros controles têm altura mínima de 32px e margens, aproximando-se da recomendação de 44px.
-    -->
-
     <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -38,50 +17,34 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- Título Principal -->
         <TextBlock Grid.Row="0" Text="Painel de Integração de Documentos Fiscais" FontSize="20" FontWeight="Bold" Margin="8,4,8,12" Foreground="#1E1E1E"/>
 
-        <!-- Corpo Principal (Seleção, Ações e Grid) -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="380" MinWidth="320" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Painel Esquerdo: Seleção e Ações -->
             <Border Grid.Column="0" Background="White" CornerRadius="4" Margin="8,0,8,0" BorderBrush="#DDD" BorderThickness="1">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="16">
 
-                        <!-- Seção de Seleção de Arquivos -->
                         <GroupBox Header="1. Selecionar Arquivos" FontWeight="SemiBold" FontSize="14">
                             <StackPanel Margin="8">
                                 <Grid Margin="0,4,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="NFe (XML):" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="NfePath" Grid.Column="1" VerticalAlignment="Center" IsReadOnly="True" Background="#F5F5F5"/>
                                     <Button Content="Procurar..." Click="PickNfe_Click" Grid.Column="2" Margin="8,0,0,0" MinWidth="90"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="MDFe (XML):" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="MdfePath" Grid.Column="1" VerticalAlignment="Center" IsReadOnly="True" Background="#F5F5F5"/>
                                     <Button Content="Procurar..." Click="PickMdfe_Click" Grid.Column="2" Margin="8,0,0,0" MinWidth="90"/>
                                 </Grid>
                                 <Grid Margin="0,4,0,4">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="SPED (TXT):" VerticalAlignment="Center" Margin="0,0,8,0"/>
                                     <TextBox x:Name="TxtPath" Grid.Column="1" VerticalAlignment="Center" IsReadOnly="True" Background="#F5F5F5"/>
                                     <Button Content="Procurar..." Click="PickTxt_Click" Grid.Column="2" Margin="8,0,0,0" MinWidth="90"/>
@@ -89,10 +52,8 @@
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Seção de Ações Principais -->
                         <GroupBox Header="2. Processar e Calcular" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
-                            <Button x:Name="PreFillButton" Click="PreFill_Click" Style="{StaticResource AccentButtonStyle}" Margin="8"
-                                    Height="44" ToolTip="Inicia a leitura, correlação e cálculo de rotas dos arquivos selecionados.">
+                            <Button x:Name="PreFillButton" Click="PreFill_Click" Style="{StaticResource AccentButtonStyle}" Margin="8" Height="44" ToolTip="Inicia a leitura, correlação e cálculo de rotas dos arquivos selecionados.">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE895;" FontFamily="Segoe MDL2 Assets" FontSize="16" VerticalAlignment="Center"/>
                                     <TextBlock Text="Processar e Calcular Rota" VerticalAlignment="Center" Margin="8,0,0,0" FontWeight="SemiBold"/>
@@ -100,22 +61,17 @@
                             </Button>
                         </GroupBox>
 
-                        <!-- Status do Processamento -->
                         <GroupBox Header="Status do Processamento" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
                             <StackPanel Margin="8">
                                 <TextBlock x:Name="StatusText" Text="Aguardando início..." TextWrapping="Wrap" MinHeight="32"/>
                                 <Grid Margin="0,8,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <ProgressBar x:Name="LoadingIndicator" Height="12" IsIndeterminate="False" Minimum="0" Maximum="100" Visibility="Collapsed"/>
                                     <TextBlock x:Name="ProgressPercentageText" Grid.Column="1" Text="0%" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
                                 </Grid>
                             </StackPanel>
                         </GroupBox>
 
-                        <!-- Ferramentas Adicionais -->
                         <GroupBox Header="Ferramentas" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
                             <WrapPanel Margin="8">
                                 <Button x:Name="ImportJsonButton" Content="Importar JSON de Cálculo" Click="ImportJson_Click" Margin="0,0,8,8"/>
@@ -129,7 +85,6 @@
                 </ScrollViewer>
             </Border>
 
-            <!-- Painel Direito: Grid de Resultados -->
             <Border Grid.Column="1" Background="White" CornerRadius="4" Margin="8,0,8,0" BorderBrush="#DDD" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -137,27 +92,76 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <TextBlock Text="Resultados do Processamento" Grid.Row="0" FontSize="14" FontWeight="SemiBold" Margin="16,16,16,8"/>
-                    <DataGrid x:Name="PreviewGrid" Grid.Row="1" Margin="16,8,16,16" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False"
+                    <DataGrid x:Name="PreviewGrid" Grid.Row="1" Margin="16,8,16,16" AutoGenerateColumns="False" 
+                              IsReadOnly="False" CanUserAddRows="False"
                               ItemsSource="{Binding}" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsComplete}" Value="False">
+                                        <Setter Property="Background" Value="#FAAAAA"/>
+                                        <Setter Property="BorderBrush" Value="Red"/>
+                                        <Setter Property="BorderThickness" Value="0.5"/>
+                                        <Setter Property="ToolTip" Value="Esta linha possui informações incompletas."/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Modelo" Binding="{Binding Modelo}"/>
-                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}"/>
-                            <DataGridTextColumn Header="Renavam" Binding="{Binding Renavam}"/>
-                            <DataGridTextColumn Header="Placa" Binding="{Binding Placa}"/>
-                            <DataGridTextColumn Header="MDF-e" Binding="{Binding MdfeNumero}"/>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat='g'}"/>
-                            <DataGridTextColumn Header="Distância (KM)" Binding="{Binding DistanciaPercorridaKm, StringFormat='N2'}"/>
-                            <DataGridTextColumn Header="N° NF-e Carga" Binding="{Binding NFeCargaNumero}"/>
-                            <DataGridTextColumn Header="Emissão Carga" Binding="{Binding DataEmissaoCarga}"/>
-                            <DataGridTextColumn Header="Qtd (LT)" Binding="{Binding QuantidadeLitros}"/>
-                            <DataGridTextColumn Header="Qtd Estimada (LT)" Binding="{Binding QuantidadeEstimadaLitros, StringFormat='N2'}"/>
-                            <DataGridTextColumn Header="Combustível" Binding="{Binding EspecieCombustivel}"/>
-                            <DataGridTextColumn Header="Valor Unit." Binding="{Binding ValorUnitario, StringFormat='C'}"/>
-                            <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='C'}"/>
-                            <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='C'}"/>
-                            <DataGridTextColumn Header="N° NF-e" Binding="{Binding NFeNumero}"/>
-                            <DataGridTextColumn Header="Data Emissão" Binding="{Binding DataEmissao, StringFormat='g'}"/>
-                            <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo}"/>
+                            <DataGridTextColumn Header="Modelo" Binding="{Binding Modelo, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Modelo_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Tipo_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Renavam" Binding="{Binding Renavam, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Renavam_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Placa" Binding="{Binding Placa, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Placa_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="MDF-e" Binding="{Binding MdfeNumero, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding MdfeNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat='g', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Data_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Distância (KM)" Binding="{Binding DistanciaPercorridaKm, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DistanciaPercorridaKm_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="N° NF-e Carga" Binding="{Binding NFeCargaNumero, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding NFeCargaNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Emissão Carga" Binding="{Binding DataEmissaoCarga, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissaoCarga_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Qtd (LT)" Binding="{Binding QuantidadeLitros, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding QuantidadeLitros_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Qtd Estimada (LT)" Binding="{Binding QuantidadeEstimadaLitros, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding QuantidadeEstimadaLitros_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Combustível" Binding="{Binding EspecieCombustivel, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding EspecieCombustivel_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Valor Unit." Binding="{Binding ValorUnitario, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorUnitario_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorTotalCombustivel_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorCredito_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="N° NF-e" Binding="{Binding NFeNumero, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding NFeNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Data Emissão" Binding="{Binding DataEmissao, StringFormat='g', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissao_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo, UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Vinculo_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            </DataGridTextColumn>
                             <DataGridTemplateColumn Header="Mapa">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
@@ -171,7 +175,6 @@
             </Border>
         </Grid>
 
-        <!-- Rodapé: Ações de Exportação -->
         <Border Grid.Row="2" Background="White" CornerRadius="4" Margin="8,12,8,0" BorderBrush="#DDD" BorderThickness="1">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
                 <Button x:Name="ExportConferenciaButton" Content="Exportar Conferência" Click="ExportConferencia_Click" Margin="0,0,8,0" MinWidth="160" Height="32"/>
