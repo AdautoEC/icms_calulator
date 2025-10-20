@@ -16,7 +16,7 @@ Há requisitos explícitos do histórico:
 - A partir do **MDFe**, obter o **chNFe**, localizar no SPED a linha **C100** correspondente e, via **0150**, obter o **endereço** da entrega; o próximo **chNFe** refere-se à **próxima entrega** (sequência de eventos).
 - Produzir **CSV** consolidados e dashboards com métricas de rotas, quilometragem, tempos e cobertura.
 
-O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pipeline local e/ou expor um **API** para consultas remotas.
+O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pipeline local e/ou expor um **API** para consultas remotas. Recentemente, foi adicionada uma funcionalidade que permite aos usuários ajustar manualmente as rotas incorretas através de uma nova janela de edição.
 
 ---
 
@@ -170,6 +170,7 @@ Registra quaisquer problemas encontrados durante o processamento.
 
 - **Desktop (WPF/WinUI/.NET)**: seleção de arquivos, status de parsing, preview, filtros, botão **Exportar CSV**. A tela principal agora exibe uma única linha com dados somados.
 - **Contadores/BI**: sumários (km total, nº entregas, outliers), gráficos de barras/linha e mapa (se disponível). Os pop-ups do mapa agora mostram detalhes de cada registro C190.
+- **RouteEditorWindow**: Uma nova janela que permite aos usuários visualizar e editar os endereços de uma rota. Ao salvar, a rota é recalculada automaticamente, e a distância e o mapa são atualizados.
 
 ---
 
@@ -183,28 +184,74 @@ Registra quaisquer problemas encontrados durante o processamento.
 
 ## 10) Inventário Automático (preencha com o repositório real)
 
-> Use um destes métodos **no seu ambiente** e anexe o resultado ao contexto do `gemini-cli`.
->
-> **Windows (PowerShell):**
-> ```powershell
-> # 1) Árvore completa
-> tree /F > repo_tree.txt
-> 
-> # 2) Lista de classes/nomes em .cs e .ts
-> Get-ChildItem -Recurse -Include *.cs,*.ts | ForEach-Object {
->   $p = $_.FullName
->   $classes = (Select-String -Path $p -Pattern 'class\s+\w+|interface\s+\w+' -AllMatches).Matches.Value -join '; '
->   if ($classes) { "$p -> $classes" } else { "$p" }
-> } | Out-File repo_symbols.txt -Encoding utf8
-> ```
->
-> **Linux/macOS (bash):**
-> ```bash
-> find . -type f -print > repo_tree.txt
-> rg -n --no-heading -e 'class\s+\w+|interface\s+\w+' --glob '!**/bin/**' --glob '!**/obj/**' > repo_symbols.txt
-> ```
+> A árvore de arquivos a seguir foi gerada automaticamente.
 
-Inclua ambos arquivos (`repo_tree.txt`, `repo_symbols.txt`) ao rodar o `gemini-cli` junto com este `gemini.md` para que o modelo **enxergue os Models/Services reais** do seu repositório.
+```
+C:\Users\User\Documents\icms\
+├───.gitignore
+├───12826990000109-284415260-20200801-20200831-1-C20D1596C276902D1A57E92C5C4FD2B9E282E81D-SPED-EFD.txt
+├───AddVehicleWindow.xaml
+├───AddVehicleWindow.xaml.cs
+├───App.xaml
+├───App.xaml.cs
+├───CsvIntegratorApp.csproj
+├───CsvIntegratorApp.sln
+├───demonstrativo.xlsx - Demonstrativo.csv
+├───exemplo.txt
+├───GEMINI.md
+├───ImportWizardWindow.xaml
+├───ImportWizardWindow.xaml.cs
+├───MDFe 50200812826990000109580010000004901000005892.xml
+├───ModelEditorWindow.xaml
+├───ModelEditorWindow.xaml.cs
+├───modelo_para_exportar.xlsx
+├───Modelo.xlsx
+├───Modelo.xlsx - Nota de Aquisição Combustível.csv
+├───NFe Combustivel 5020 0805 0801 1700 0146 5500 1000 0770 0010 0004 0417.xml
+├───ors_api_key.txt
+├───prompt_layout.txt
+├───prompt_modelo_planilha.txt
+├───README.md
+├───RouteEditorWindow.xaml
+├───RouteEditorWindow.xaml.cs
+├───VehicleEditorWindow.xaml
+├───VehicleEditorWindow.xaml.cs
+├───.git\...
+├───.idea\
+│   └───caches\...
+├───.vs\
+│   ├───CsvIntegratorApp\...
+│   ├───icms\...
+│   └───ProjectEvaluation\...
+├───bin\
+│   └───Debug\...
+├───Models\
+│   ├───GeoPoint.cs
+│   ├───ModelRow.cs
+│   ├───VehicleInfo.cs
+│   ├───WaypointInfo.cs
+│   └───OpenRouteService\
+│       ├───DirectionsRequest.cs
+│       └───DirectionsResponse.cs
+├───obj\
+│   └───Debug\...
+└───Services\
+    ├───CalculationLogService.cs
+    ├───DistanceService.cs
+    ├───MergeService.cs
+    ├───ModelService.cs
+    ├───ParserMDFe.cs
+    ├───ParserNFe.cs
+    ├───RouteLogService.cs
+    ├───SpedEfdTxtReader.cs
+    ├───SpedLookupService.cs
+    ├───SpedTxtLookupService.cs
+    ├───VehicleService.cs
+    ├───ApiClients\
+    │   └───OpenRouteServiceClient.cs
+    └───Route\
+        └───MdfeRouteService.cs
+```
 
 ---
 
@@ -227,6 +274,19 @@ Inclua ambos arquivos (`repo_tree.txt`, `repo_symbols.txt`) ao rodar o `gemini-c
   GEOCODER__ApiKey=...
   ```
 - **Build/Run**: `dotnet build` → `dotnet run` (ou execute o app desktop).
+
+### Gerando um Executável Único
+
+Para distribuir a aplicação como um único arquivo `.exe`, use o seguinte comando:
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+```
+
+- **`-c Release`**: Compila o projeto em modo de `Release`, otimizado para performance.
+- **`-r win-x64`**: Especifica o runtime de destino como Windows 64-bit.
+- **`--self-contained true`**: Inclui o .NET runtime no executável, para que ele possa ser executado em máquinas que não têm o .NET instalado.
+- **`/p:PublishSingleFile=true`**: Agrupa todos os arquivos da aplicação em um único `.exe`.
 
 ---
 

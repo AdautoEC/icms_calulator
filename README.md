@@ -36,6 +36,7 @@ O foco é **simplicidade operacional** e **confiabilidade** para equipes de neg�
 - **Distância Haversine** calculada localmente (sem dependência de API externa).
 - **Exportação CSV** com cabeçalhos e formatação consistente.
 - **Relatório de importação** (registros válidos/ignorados) para auditoria.
+- **Editor de Rotas**: Permite o ajuste manual de rotas incorretas, com recálculo automático da distância.
 
 ---
 
@@ -83,6 +84,19 @@ dotnet build
 # Abra a solução no Visual Studio e rode o projeto 'App'
 ```
 
+### Gerando um Executável para Distribuição
+
+Para gerar um único arquivo `.exe` que pode ser distribuído para outras máquinas, use o seguinte comando:
+
+```bash
+dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+```
+
+- **`-c Release`**: Compila o projeto em modo de `Release`, otimizado para performance.
+- **`-r win-x64`**: Especifica o runtime de destino como Windows 64-bit.
+- **`--self-contained true`**: Inclui o .NET runtime no executável, para que ele possa ser executado em máquinas que não têm o .NET instalado.
+- **`/p:PublishSingleFile=true`**: Agrupa todos os arquivos da aplicação em um único `.exe`.
+
 ---
 
 ## Configuração
@@ -99,6 +113,7 @@ dotnet build
 3. Execute o processamento; verifique o **resumo** (registros válidos/ignorados).  
 4. Exporte o **CSV consolidado** para a pasta desejada.  
 5. Consulte o **relatório de importação** para auditoria.
+6. Se uma rota estiver incorreta, clique no botão **Ajustar Rota** na linha correspondente para abrir o editor de rotas e ajustar os endereços.
 
 ---
 
