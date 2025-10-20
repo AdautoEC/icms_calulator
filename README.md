@@ -97,6 +97,24 @@ dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=
 - **`--self-contained true`**: Inclui o .NET runtime no executável, para que ele possa ser executado em máquinas que não têm o .NET instalado.
 - **`/p:PublishSingleFile=true`**: Agrupa todos os arquivos da aplicação em um único `.exe`.
 
+### Criando um Instalador (.msi)
+
+Para criar um instalador `.msi` para a aplicação, você pode usar o WiX Toolset. O projeto já está configurado com os arquivos necessários.
+
+**1. Instale o WiX Toolset:**
+
+Baixe e instale a versão mais recente do WiX Toolset em [https://wixtoolset.org/](https://wixtoolset.org/).
+
+**2. Compile o instalador:**
+
+Execute o seguinte comando para compilar a solução e gerar o instalador:
+
+```bash
+dotnet build -c Release
+```
+
+O instalador `.msi` será gerado na pasta `Installer/bin/Release/net8.0/`.
+
 ---
 
 ## Configuração

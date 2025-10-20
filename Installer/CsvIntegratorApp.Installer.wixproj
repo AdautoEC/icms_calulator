@@ -1,0 +1,6 @@
+<Project Sdk="WixToolset.Sdk/4.0.5">
+  <ItemGroup>
+    <PackageFile Include="Product.wxs" />
+    <ProjectReference Include="..\CsvIntegratorApp.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="*" 
+             Name="ICMS / SPED Integrator" 
+             Language="1033" 
+             Version="1.0.0.0" 
+             Manufacturer="PEREIRA E SOUZA TECNOLOGIA LTDA" 
+             UpgradeCode="f8a3a3c2-8b2f-4b3c-8a3f-3a3b3c8a3f3a">
+
+        <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+        <MajorUpgrade DowngradeErrorMessage="Uma versão mais recente do [ProductName] já está instalada." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <Feature Id="ProductFeature" Title="CsvIntegratorApp.Installer" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+        </Feature>
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLFOLDER" Name="ICMS SPED Integrator" />
+            </Directory>
+        </Directory>
+
+        <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+            <Component Id="CsvIntegratorApp.exe" Guid="*">
+                <File Id="CsvIntegratorApp.exe" Source="$(var.CsvIntegratorApp.TargetPath)" KeyPath="yes" />
+            </Component>
+        </ComponentGroup>
+    </Product>
+</Wix>
