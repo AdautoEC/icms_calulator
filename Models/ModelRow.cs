@@ -1,6 +1,7 @@
 // Models/ModelRow.cs
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace CsvIntegratorApp.Models
 {
@@ -98,6 +99,8 @@ namespace CsvIntegratorApp.Models
         public string? MapPath { get; set; }
         public string? Vinculo { get => _vinculo; set { if (SetField(ref _vinculo, value) && IsInitialized) { Vinculo_IsEdited = true; OnPropertyChanged(nameof(Vinculo_IsEdited)); } } }
         public bool Vinculo_IsEdited { get; private set; }
+
+        public List<WaypointInfo> Waypoints { get; set; } = new List<WaypointInfo>();
 
         public bool IsComplete => Vinculo == "Sim" && DistanciaPercorridaKm.HasValue;
 

@@ -162,10 +162,13 @@
                             <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Vinculo_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTemplateColumn Header="Mapa">
+                            <DataGridTemplateColumn Header="Ações">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Ver Mapa" Click="ViewMap_Click" CommandParameter="{Binding MapPath}" Margin="4,2"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Content="Ver Mapa" Click="ViewMap_Click" CommandParameter="{Binding MapPath}" Margin="2"/>
+                                            <Button Content="Ajustar Rota" Click="AdjustRoute_Click" CommandParameter="{Binding}" Margin="2"/>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>

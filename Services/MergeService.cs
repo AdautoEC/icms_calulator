@@ -59,6 +59,7 @@ namespace CsvIntegratorApp.Services
                 var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, somarRetornoParaOrigem);
 
                 var modelRow = BaseFromMdfe(h);
+                modelRow.Waypoints = waypoints;
 
                 if (routeResult.TotalKm.HasValue)
                 {

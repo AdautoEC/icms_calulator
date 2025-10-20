@@ -490,5 +490,22 @@ namespace CsvIntegratorApp
                 MessageBox.Show($"Não foi possível abrir o arquivo de log: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void AdjustRoute_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var modelRow = button?.CommandParameter as ModelRow;
+
+            if (modelRow != null)
+            {
+                var routeEditor = new RouteEditorWindow(modelRow);
+                routeEditor.Owner = this;
+                if (routeEditor.ShowDialog() == true)
+                {
+                    PreviewGrid.ItemsSource = null;
+                    PreviewGrid.ItemsSource = _currentRows;
+                }
+            }
+        }
     }
 }
