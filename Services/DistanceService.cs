@@ -28,27 +28,9 @@ namespace CsvIntegratorApp.Services
         private static string? GetApiKey()
         {
             if (_apiKeyCache != null) return _apiKeyCache;
-            try
-            {
-                var keyPath = "C:\\Users\\User\\Documents\\icms\\ors_api_key.txt";
-                if (File.Exists(keyPath))
-                {
-                    var key = File.ReadAllText(keyPath).Trim();
-                    if (!string.IsNullOrWhiteSpace(key) && key.Length > 40)
-                    {
-                        _apiKeyCache = key;
-                        return _apiKeyCache;
-                    }
-                }
-                CalculationLogService.Log("AVISO: Arquivo 'ors_api_key.txt' não encontrado ou com chave inválida.");
-                _apiKeyCache = "";
-                return null;
-            }
-            catch (Exception ex)
-            {
-                CalculationLogService.Log($"ERRO: Falha ao ler a chave da API. {ex.Message}");
-                return null;
-            }
+            // WARNING: API Key is hardcoded. This is a security risk.
+            _apiKeyCache = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA1Y2ZmNTZkOThjNzQ4ZDg5ZGNmNWNmMzhmOTBiNjQzIiwiaCI6Im11cm11cjY0In0=";
+            return _apiKeyCache;
         }
 
         private static OpenRouteServiceClient? GetClient()

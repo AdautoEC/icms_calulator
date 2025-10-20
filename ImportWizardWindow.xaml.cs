@@ -385,8 +385,15 @@ namespace CsvIntegratorApp
             int currentRow = 9;
             foreach (var row in dieselRows)
             {
+                // Tenta obter a data de entrada do C100 usando a chave da NFe
+                DateTime? dataEntrada = null;
+                if (SpedTxtLookupService.TryGetC100DataPorChave(row.ChaveNFe, out var dtEntrada))
+                {
+                    dataEntrada = dtEntrada;
+                }
+
                 worksheet.Cell(currentRow, 1).Value = row.DataEmissao;
-                worksheet.Cell(currentRow, 2).Value = row.Data; // This might be null, as it comes from MDFe
+                worksheet.Cell(currentRow, 2).Value = dataEntrada; // Usa a data de entrada do C100
                 worksheet.Cell(currentRow, 3).Value = row.NFeNumero;
                 worksheet.Cell(currentRow, 4).Value = row.FornecedorCnpj;
                 worksheet.Cell(currentRow, 5).Value = row.FornecedorNome;

@@ -246,7 +246,7 @@ namespace CsvIntegratorApp.Services
                 NFeNumero = n.NumeroNFe,
                 DataEmissao = n.DataEmissao,
                 QuantidadeLitros = n.Quantidade,
-                EspecieCombustivel = n.DescANP ?? n.DescricaoProduto,
+                EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>",
                 ValorUnitario = n.ValorUnitario,
                 ValorTotalCombustivel = n.ValorTotal,
                 ValorCredito = n.Credito,
@@ -265,7 +265,7 @@ namespace CsvIntegratorApp.Services
         private static void EnriquecerComNfe(ModelRow r, NfeParsedItem n)
         {
             r.QuantidadeLitros = n.Quantidade;
-            r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto;
+            r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>";
             r.ValorUnitario = n.ValorUnitario;
             r.ValorTotalCombustivel = n.ValorTotal;
             r.ValorCredito = n.Credito;
