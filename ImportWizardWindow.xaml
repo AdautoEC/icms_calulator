@@ -104,15 +104,22 @@
                         <GroupBox Header="Status do Processamento" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
                             <StackPanel Margin="8">
                                 <TextBlock x:Name="StatusText" Text="Aguardando início..." TextWrapping="Wrap" MinHeight="32"/>
-                                <ProgressBar x:Name="LoadingIndicator" Height="8" Margin="0,8,0,0" IsIndeterminate="True" Visibility="Collapsed"/>
+                                <Grid Margin="0,8,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ProgressBar x:Name="LoadingIndicator" Height="12" IsIndeterminate="False" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+                                    <TextBlock x:Name="ProgressPercentageText" Grid.Column="1" Text="0%" Margin="8,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"/>
+                                </Grid>
                             </StackPanel>
                         </GroupBox>
 
                         <!-- Ferramentas Adicionais -->
                         <GroupBox Header="Ferramentas" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
                             <WrapPanel Margin="8">
-                                <Button Content="Abrir Editor (Modelos)" Click="OpenEditor_Click" Margin="0,0,8,8"/>
-                                <Button Content="Gerenciar Veículos" Click="OpenVehicleEditor_Click" Margin="0,0,8,8"/>
+                                <Button x:Name="OpenEditorButton" Content="Abrir Editor (Modelos)" Click="OpenEditor_Click" Margin="0,0,8,8"/>
+                                <Button x:Name="OpenVehicleEditorButton" Content="Gerenciar Veículos" Click="OpenVehicleEditor_Click" Margin="0,0,8,8"/>
                                 <Button x:Name="ViewLogButton" Content="Ver Log de Cálculo" Click="ViewLog_Click" IsEnabled="False"/>
                             </WrapPanel>
                         </GroupBox>
@@ -166,8 +173,8 @@
         <!-- Rodapé: Ações de Exportação -->
         <Border Grid.Row="2" Background="White" CornerRadius="4" Margin="8,12,8,0" BorderBrush="#DDD" BorderThickness="1">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="16">
-                <Button Content="Exportar Conferência" Click="ExportConferencia_Click" Margin="0,0,8,0" MinWidth="160" Height="32"/>
-                <Button Content="Exportar Excel" Click="ExportExcel_Click" MinWidth="140" Height="32" Style="{StaticResource AccentButtonStyle}"/>
+                <Button x:Name="ExportConferenciaButton" Content="Exportar Conferência" Click="ExportConferencia_Click" Margin="0,0,8,0" MinWidth="160" Height="32"/>
+                <Button x:Name="ExportExcelButton" Content="Exportar Excel" Click="ExportExcel_Click" MinWidth="140" Height="32" Style="{StaticResource AccentButtonStyle}"/>
             </StackPanel>
         </Border>
     </Grid>
