@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -59,7 +60,6 @@ namespace CsvIntegratorApp
                 return;
             }
 
-            // Configurar UI para estado de processamento
             SetUiProcessingState(true);
 
             var progress = new Progress<ProgressReport>(report =>
@@ -85,20 +85,17 @@ namespace CsvIntegratorApp
                     PreviewGrid.ItemsSource = _currentRows;
                     StatusText.Text = $"Processamento concluído: {_currentRows.Count} linha(s) gerada(s).";
                 }
-                // Em caso de falha, a mensagem de erro já foi mostrada e logada no background thread
             }
             catch (Exception ex)
             {
-                // Captura exceções inesperadas que não foram tratadas no background task
                 MessageBox.Show(this, ex.Message, "Erro Inesperado", MessageBoxButton.OK, MessageBoxImage.Error);
                 CalculationLogService.Log($"ERRO FATAL: {ex.Message}");
                 CalculationLogService.Save();
             }
             finally
             {
-                // Restaurar UI para estado ocioso
                 SetUiProcessingState(false);
-                ViewLogButton.IsEnabled = true; // Habilita o log ao final, com sucesso ou erro
+                ViewLogButton.IsEnabled = true;
             }
         }
 
@@ -107,27 +104,18 @@ namespace CsvIntegratorApp
         {
             try
             {
-                // Etapa 1: Leitura SPED (20%)
                 progress.Report(new ProgressReport { Percentage = 5, StatusMessage = "Iniciando leitura de arquivos SPED..." });
-                if (txtFiles.Any())
-                {
-                    SpedTxtLookupService.LoadTxt(txtFiles);
-                }
+                if (txtFiles.Any()) SpedTxtLookupService.LoadTxt(txtFiles);
                 progress.Report(new ProgressReport { Percentage = 20, StatusMessage = "Arquivos SPED carregados." });
 
-                // Etapa 2: Leitura NFe (40%)
                 progress.Report(new ProgressReport { Percentage = 25, StatusMessage = "Lendo arquivos NFe de combustível..." });
                 if (nfeFiles.Any())
                 {
                     _allNfeItems.Clear();
-                    foreach (var nfeFile in nfeFiles)
-                    {
-                        _allNfeItems.AddRange(ParserNFe.Parse(nfeFile));
-                    }
+                    foreach (var nfeFile in nfeFiles) _allNfeItems.AddRange(ParserNFe.Parse(nfeFile));
                 }
                 progress.Report(new ProgressReport { Percentage = 40, StatusMessage = "NFes de combustível carregadas." });
 
-                // Etapa 3: Leitura MDFe (60%)
                 progress.Report(new ProgressReport { Percentage = 45, StatusMessage = "Lendo arquivos MDFe..." });
                 var mdfes = new List<MdfeParsed>();
                 foreach (var mdfeFile in mdfeFiles)
@@ -144,13 +132,10 @@ namespace CsvIntegratorApp
                 }
                 progress.Report(new ProgressReport { Percentage = 60, StatusMessage = "MDFes carregados." });
 
-                // Etapa 4: Cruzamento de Dados e Cálculo de Rota (90%)
                 progress.Report(new ProgressReport { Percentage = 65, StatusMessage = "Iniciando cruzamento de dados e cálculo de rotas..." });
-                // A Task.Result aqui é segura porque estamos dentro de um Task.Run
                 var mergedRows = MergeService.MergeAsync(_allNfeItems, mdfes, true).Result;
                 progress.Report(new ProgressReport { Percentage = 90, StatusMessage = "Cruzamento e cálculo de rotas concluídos." });
 
-                // Etapa 5: Finalizando (100%)
                 progress.Report(new ProgressReport { Percentage = 100, StatusMessage = "Finalizando..." });
 
                 return (true, mergedRows);
@@ -168,10 +153,11 @@ namespace CsvIntegratorApp
         private void SetUiProcessingState(bool isProcessing)
         {
             PreFillButton.IsEnabled = !isProcessing;
-            ExportExcelButton.IsEnabled = !isProcessing; // Supondo que o botão de exportar tenha x:Name="ExportExcelButton"
-            ExportConferenciaButton.IsEnabled = !isProcessing; // Supondo que o botão de conferência tenha x:Name="ExportConferenciaButton"
-            OpenEditorButton.IsEnabled = !isProcessing; // Supondo que o botão de editor tenha x:Name="OpenEditorButton"
-            OpenVehicleEditorButton.IsEnabled = !isProcessing; // Supondo que o botão de veículos tenha x:Name="OpenVehicleEditorButton"
+            ExportExcelButton.IsEnabled = !isProcessing;
+            ExportConferenciaButton.IsEnabled = !isProcessing;
+            OpenVehicleEditorButton.IsEnabled = !isProcessing;
+            ImportJsonButton.IsEnabled = !isProcessing;
+            SaveJsonButton.IsEnabled = !isProcessing;
 
             LoadingIndicator.Visibility = isProcessing ? Visibility.Visible : Visibility.Collapsed;
             ProgressPercentageText.Visibility = isProcessing ? Visibility.Visible : Visibility.Collapsed;
@@ -183,11 +169,57 @@ namespace CsvIntegratorApp
             }
         }
 
-        private void OpenEditor_Click(object sender, RoutedEventArgs e)
+        private void ImportJson_Click(object sender, RoutedEventArgs e)
         {
-            var editor = new ModelEditorWindow(_currentRows);
-            editor.Owner = this;
-            editor.ShowDialog();
+            var dlg = new OpenFileDialog { Filter = "JSON de Cálculo (*.json)|*.json", DefaultExt = ".json" };
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var json = File.ReadAllText(dlg.FileName);
+                    var rows = JsonSerializer.Deserialize<List<ModelRow>>(json);
+                    if (rows != null)
+                    {
+                        _currentRows = rows;
+                        PreviewGrid.ItemsSource = null;
+                        PreviewGrid.ItemsSource = _currentRows;
+                        StatusText.Text = $"Dados importados de {Path.GetFileName(dlg.FileName)}. {_currentRows.Count} linhas carregadas.";
+                    }
+                    else
+                    {
+                        MessageBox.Show(this, "O arquivo JSON está vazio ou em formato inválido.", "Erro de Importação", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Falha ao importar o arquivo JSON: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void SaveJson_Click(object sender, RoutedEventArgs e)
+        {
+            if (_currentRows == null || _currentRows.Count == 0)
+            {
+                MessageBox.Show(this, "Não há dados para salvar. Processe os arquivos primeiro.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dlg = new SaveFileDialog { Filter = "JSON de Cálculo (*.json)|*.json", DefaultExt = ".json", FileName = "calculo.json" };
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    var json = JsonSerializer.Serialize(_currentRows, options);
+                    File.WriteAllText(dlg.FileName, json);
+                    StatusText.Text = $"Dados salvos em {Path.GetFileName(dlg.FileName)}.";
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Falha ao salvar o arquivo JSON: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
         }
 
         private void OpenVehicleEditor_Click(object sender, RoutedEventArgs e)

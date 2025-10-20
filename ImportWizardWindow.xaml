@@ -118,7 +118,8 @@
                         <!-- Ferramentas Adicionais -->
                         <GroupBox Header="Ferramentas" FontWeight="SemiBold" FontSize="14" Margin="0,16,0,0">
                             <WrapPanel Margin="8">
-                                <Button x:Name="OpenEditorButton" Content="Abrir Editor (Modelos)" Click="OpenEditor_Click" Margin="0,0,8,8"/>
+                                <Button x:Name="ImportJsonButton" Content="Importar JSON de Cálculo" Click="ImportJson_Click" Margin="0,0,8,8"/>
+                                <Button x:Name="SaveJsonButton" Content="Salvar JSON de Cálculo" Click="SaveJson_Click" Margin="0,0,8,8"/>
                                 <Button x:Name="OpenVehicleEditorButton" Content="Gerenciar Veículos" Click="OpenVehicleEditor_Click" Margin="0,0,8,8"/>
                                 <Button x:Name="ViewLogButton" Content="Ver Log de Cálculo" Click="ViewLog_Click" IsEnabled="False"/>
                             </WrapPanel>
