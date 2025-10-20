@@ -1,7 +1,8 @@
-// VehicleEditorWindow.xaml.cs
-using System.Collections.Generic;
+using Microsoft.Win32;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Windows;
 using CsvIntegratorApp.Models;
 using CsvIntegratorApp.Services;
@@ -15,33 +16,105 @@ namespace CsvIntegratorApp
         public VehicleEditorWindow()
         {
             InitializeComponent();
-            // Carrega os veículos e cria uma coleção observável para a UI atualizar automaticamente
             _vehicles = new ObservableCollection<VehicleInfo>(VehicleService.GetVehicles());
             VehicleGrid.ItemsSource = _vehicles;
         }
 
-        private void RemoveRow_Click(object sender, RoutedEventArgs e)
+        private void AddVehicle_Click(object sender, RoutedEventArgs e)
         {
-            if (VehicleGrid.SelectedItem is VehicleInfo selectedVehicle)
+            var addWindow = new AddVehicleWindow { Owner = this };
+            if (addWindow.ShowDialog() == true)
             {
-                _vehicles.Remove(selectedVehicle);
-            }
-            else
-            {
-                MessageBox.Show("Por favor, selecione um veículo para remover.", "Nenhum Veículo Selecionado", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (addWindow.NewVehicle != null)
+                {
+                    _vehicles.Add(addWindow.NewVehicle);
+                }
             }
         }
 
-        private void SaveAndClose_Click(object sender, RoutedEventArgs e)
+        private void Save_Click(object sender, RoutedEventArgs e)
         {
-            // Atualiza a lista de serviço com os dados da UI e salva
+            UpdateVehicleServiceAndSave();
+            MessageBox.Show("Frota de veículos salva com sucesso!", "Salvo", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void ImportJson_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new OpenFileDialog
+            {
+                Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*",
+                DefaultExt = ".json"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var json = File.ReadAllText(dlg.FileName);
+                    var importedVehicles = JsonSerializer.Deserialize<ObservableCollection<VehicleInfo>>(json);
+
+                    if (importedVehicles != null)
+                    {
+                        int importCount = 0;
+                        foreach (var vehicle in importedVehicles)
+                        {
+                            _vehicles.Add(vehicle);
+                            importCount++;
+                        }
+
+                        UpdateVehicleServiceAndSave();
+
+                        MessageBox.Show($"{importCount} veículos importados e adicionados à frota com sucesso!", "Importação Concluída", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Falha ao importar o arquivo JSON: {ex.Message}", "Erro de Importação", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void ExportJson_Click(object sender, RoutedEventArgs e)
+        {
+            if (_vehicles.Count == 0)
+            {
+                MessageBox.Show("Não há veículos para exportar.", "Nenhum Veículo", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var dlg = new SaveFileDialog
+            {
+                FileName = "frota.json",
+                Filter = "JSON Files (*.json)|*.json|All files (*.*)|*.*",
+                DefaultExt = ".json"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                try
+                {
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    var json = JsonSerializer.Serialize(_vehicles, options);
+                    File.WriteAllText(dlg.FileName, json);
+
+                    MessageBox.Show("Arquivo JSON da frota exportado com sucesso!", "Exportação Concluída", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Falha ao exportar o arquivo JSON: {ex.Message}", "Erro de Exportação", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
+        private void UpdateVehicleServiceAndSave()
+        {
             var vehicleList = _vehicles.ToList();
             VehicleService.GetVehicles().Clear();
-            vehicleList.ForEach(v => VehicleService.GetVehicles().Add(v));
+            foreach (var v in vehicleList)
+            {
+                VehicleService.GetVehicles().Add(v);
+            }
             VehicleService.SaveVehicles();
-            
-            MessageBox.Show("Veículos salvos com sucesso!", "Salvo", MessageBoxButton.OK, MessageBoxImage.Information);
-            this.Close();
         }
     }
 }
