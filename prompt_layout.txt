@@ -1,0 +1,14 @@
+[REQUISITOS DE USABILIDADE & ACESSIBILIDADE]
+- Não modificar as planilhas exportadas, elas já estao completamente corretas e  não precisam ser atualizadas;
+- O layout deve mostrar ao usuario a progressao do processo de processar or arquivos, e calcular a rota e deve mostrar em qual etapa esta no momento
+- Aplique as 10 Heurísticas de Nielsen (explícito onde cada uma é atendida).
+- Aderir a WCAG 2.2 AA: contraste mínimo 4.5:1, foco visível, navegação por teclado, labels e estados, leitura por leitor de tela (Narrator).
+- Tamanho mínimo de alvos: ≥ 44x44 px; espaçamento consistente (8/16/24 px).
+- Prevenção de erros, mensagens claras, undo onde possível.
+
+[RESPONSIVIDADE/ADAPTAÇÃO NO DESKTOP]
+- Suporte a janelas redimensionáveis, múltiplos monitores e alto DPI.
+- Definir breakpoints/estados visuais: Compacto (<900 px), Médio (900–1366 px), Amplo (>1366 px).
+- Em Compacto: navegação colapsada (hambúrguer ou pane “compact”), mesas e grids com colunas essenciais e overflow.
+- Em Médio/Amplo: navegação lateral “NavigationView”/pane exposto, colunas adicionais, painéis lado a lado.
+- Considerar Snap Layouts do Windows (zonas de encaixe).
