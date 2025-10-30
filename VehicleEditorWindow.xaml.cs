@@ -106,15 +106,76 @@ namespace CsvIntegratorApp
             }
         }
 
-        private void UpdateVehicleServiceAndSave()
-        {
-            var vehicleList = _vehicles.ToList();
-            VehicleService.GetVehicles().Clear();
-            foreach (var v in vehicleList)
-            {
-                VehicleService.GetVehicles().Add(v);
+                private void UpdateVehicleServiceAndSave()
+
+                {
+
+                    var vehicleList = _vehicles.ToList();
+
+                    VehicleService.GetVehicles().Clear();
+
+                    foreach (var v in vehicleList)
+
+                    {
+
+                        VehicleService.GetVehicles().Add(v);
+
+                    }
+
+                    VehicleService.SaveVehicles();
+
+                }
+
+        
+
+                private void EditVehicle_Click(object sender, RoutedEventArgs e)
+
+                {
+
+                    if (VehicleGrid.SelectedItem is VehicleInfo selectedVehicle)
+
+                    {
+
+                        var addWindow = new AddVehicleWindow(selectedVehicle) { Owner = this };
+
+                        if (addWindow.ShowDialog() == true)
+
+                        {
+
+                            // O veículo já foi atualizado na janela de edição, apenas atualize a UI se necessário
+
+                            VehicleGrid.Items.Refresh();
+
+                        }
+
+                    }
+
+                }
+
+        
+
+                private void DeleteVehicle_Click(object sender, RoutedEventArgs e)
+
+                {if (VehicleGrid.SelectedItem is VehicleInfo selectedVehicle)
+
+                    {
+
+                        if (MessageBox.Show($"Tem certeza que deseja excluir o veículo {selectedVehicle.Placa}?",
+
+                                           "Confirmar Exclusão", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+
+                        {
+
+                            _vehicles.Remove(selectedVehicle);
+
+                        }
+
+                    }
+
+                }
+
             }
-            VehicleService.SaveVehicles();
+
         }
-    }
-}
+
+        

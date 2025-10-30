@@ -49,6 +49,7 @@ namespace CsvIntegratorApp.Services
         public string? ProdANP { get; set; }
         public string? DescANP { get; set; }
         public string? UFConsumo { get; set; }
+        public double? Aliquota { get; set; }
 
         // Extras
         public string? PlacaObservada { get; set; }
@@ -143,7 +144,19 @@ namespace CsvIntegratorApp.Services
                 double? qCom = TryD(prod?.Element(ns + "qCom")?.Value);
                 double? vUn = TryD(prod?.Element(ns + "vUnCom")?.Value);
                 double? vProd = TryD(prod?.Element(ns + "vProd")?.Value);
-                double? credito = vProd * 0.17;
+                double aliquota = 0.0;
+                if (!string.IsNullOrWhiteSpace(cfop))
+                {
+                    if (cfop.StartsWith("5"))
+                    {
+                        aliquota = 0.17; // 17%
+                    }
+                    else if (cfop.StartsWith("6"))
+                    {
+                        aliquota = 0.07; // 7%
+                    }
+                }
+                double? credito = vProd * aliquota;
 
                 var comb = prod?.Element(ns + "comb");
                 string? cProdANP = comb?.Element(ns + "cProdANP")?.Value;
@@ -195,6 +208,7 @@ namespace CsvIntegratorApp.Services
                     ValorUnitario = vUn,
                     ValorTotal = vProd,
                     Credito = credito,
+                    Aliquota = aliquota,
 
                     ProdANP = cProdANP,
                     DescANP = bestDescription, // Usa a melhor descrição encontrada

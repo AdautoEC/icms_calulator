@@ -137,7 +137,7 @@ namespace CsvIntegratorApp
                 progress.Report(new ProgressReport { Percentage = 60, StatusMessage = "MDFes carregados." });
 
                 progress.Report(new ProgressReport { Percentage = 65, StatusMessage = "Iniciando cruzamento de dados e cálculo de rotas..." });
-                var mergedRows = MergeService.MergeAsync(_allNfeItems, mdfes, true).Result;
+                var mergedRows = MergeService.MergeAsync(_allNfeItems, mdfes, progress, true).Result;
                 progress.Report(new ProgressReport { Percentage = 90, StatusMessage = "Cruzamento e cálculo de rotas concluídos." });
 
                 progress.Report(new ProgressReport { Percentage = 100, StatusMessage = "Finalizando..." });
@@ -317,17 +317,25 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 4).Value = row.Placa;
                 worksheet.Cell(currentRow, 5).Value = row.MdfeNumero;
                 worksheet.Cell(currentRow, 6).Value = row.Data;
+                worksheet.Cell(currentRow, 6).Style.NumberFormat.Format = "dd/MM/yyyy";
                 worksheet.Cell(currentRow, 7).Value = row.Roteiro;
                 worksheet.Cell(currentRow, 8).Value = row.DistanciaPercorridaKm;
+                worksheet.Cell(currentRow, 8).Style.NumberFormat.Format = "0";
                 worksheet.Cell(currentRow, 9).Value = row.NFeCargaNumero;
                 worksheet.Cell(currentRow, 10).Value = row.DataEmissaoCarga;
-                worksheet.Cell(currentRow, 11).Value = row.QuantidadeLitros;
+                worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "dd/MM/yyyy";
+                worksheet.Cell(currentRow, 11).Value = row.QuantidadeEstimadaLitros;
+                worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.0000";
                 worksheet.Cell(currentRow, 12).Value = row.EspecieCombustivel;
                 worksheet.Cell(currentRow, 13).Value = row.ValorUnitario;
+                worksheet.Cell(currentRow, 13).Style.NumberFormat.Format = "0.0000";
                 worksheet.Cell(currentRow, 14).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 14).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 15).Value = row.ValorCredito;
+                worksheet.Cell(currentRow, 15).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 16).Value = row.NFeAquisicaoNumero;
                 worksheet.Cell(currentRow, 17).Value = row.DataAquisicao;
+                worksheet.Cell(currentRow, 17).Style.NumberFormat.Format = "dd/MM/yyyy";
                 currentRow++;
             }
 
@@ -393,16 +401,21 @@ namespace CsvIntegratorApp
                 }
 
                 worksheet.Cell(currentRow, 1).Value = row.DataEmissao;
+                worksheet.Cell(currentRow, 1).Style.NumberFormat.Format = "dd/MM/yyyy";
                 worksheet.Cell(currentRow, 2).Value = dataEntrada; // Usa a data de entrada do C100
+                worksheet.Cell(currentRow, 2).Style.NumberFormat.Format = "dd/MM/yyyy";
                 worksheet.Cell(currentRow, 3).Value = row.NFeNumero;
                 worksheet.Cell(currentRow, 4).Value = row.FornecedorCnpj;
                 worksheet.Cell(currentRow, 5).Value = row.FornecedorNome;
                 worksheet.Cell(currentRow, 6).Value = row.FornecedorEndereco;
                 worksheet.Cell(currentRow, 7).Value = row.EspecieCombustivel;
-                // Categoria is not in ModelRow
+                worksheet.Cell(currentRow, 8).Value = "Diesel";
                 worksheet.Cell(currentRow, 9).Value = row.QuantidadeLitros;
+                worksheet.Cell(currentRow, 9).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 10).Value = row.ValorUnitario;
+                worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 11).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 12).Value = row.ChaveNFe;
                 currentRow++;
             }

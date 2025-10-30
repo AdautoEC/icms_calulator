@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CsvIntegratorApp.Models;
+using CsvIntegratorApp;
 
 namespace CsvIntegratorApp.Services
 {
@@ -13,6 +14,7 @@ namespace CsvIntegratorApp.Services
         public static async Task<List<ModelRow>> MergeAsync(
             List<NfeParsedItem>? nfeItems,
             List<MdfeParsed> mdfes,
+            IProgress<ProgressReport> progress,
             bool somarRetornoParaOrigem = true)
         {
             CalculationLogService.Clear();
@@ -24,8 +26,15 @@ namespace CsvIntegratorApp.Services
                 .GroupBy(x => x.ChaveNFe ?? "", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+            int totalMdfes = mdfes.Count;
+            int processedCount = 0;
+
             foreach (var mdfe in mdfes)
             {
+                processedCount++;
+                var percentage = 65 + (int)((double)processedCount / totalMdfes * 25); // Map progress from 65% to 90%
+                progress.Report(new ProgressReport { Percentage = percentage, StatusMessage = $"Calculando rota para MDF-e {processedCount}/{totalMdfes}..." });
+
                 var h = mdfe.Header;
 
                 var origemCidade = h.OrigemCidade ?? h.EmitCidade;
@@ -249,6 +258,7 @@ namespace CsvIntegratorApp.Services
                 EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>",
                 ValorUnitario = n.ValorUnitario,
                 ValorTotalCombustivel = n.ValorTotal,
+                AliquotaCredito = n.Aliquota,
                 ValorCredito = n.Credito,
                 UFEmit = n.UFEmit,
                 UFDest = n.UFDest,
@@ -268,6 +278,7 @@ namespace CsvIntegratorApp.Services
             r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>";
             r.ValorUnitario = n.ValorUnitario;
             r.ValorTotalCombustivel = n.ValorTotal;
+            r.AliquotaCredito = n.Aliquota;
             r.ValorCredito = n.Credito;
             r.NFeAquisicaoNumero = n.NumeroNFe;
             r.DataAquisicao = n.DataEmissao;

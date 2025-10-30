@@ -99,5 +99,26 @@ namespace CsvIntegratorApp
                     : (double?)null;
             }
         }
+
+        private void EditorGrid_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
+        {
+            // Distancia percorrida: sem casas decimais
+            if (e.PropertyName == "DistanciaPercorridaKm")
+            {
+                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:F0}";
+            }
+            // Datas: remover horas
+            else if (e.PropertyName == "Data" || e.PropertyName == "DataEmissao" || e.PropertyName == "DataAquisicao")
+            {
+                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:d}";
+            }
+            // Litros e valores monetários: 2 casas decimais
+            else if (e.PropertyName == "QuantidadeLitros" || e.PropertyName == "QuantidadeEstimadaLitros" ||
+                     e.PropertyName == "ValorUnitario" || e.PropertyName == "ValorTotalCombustivel" ||
+                     e.PropertyName == "ValorCredito")
+            {
+                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:F2}";
+            }
+        }
     }
 }

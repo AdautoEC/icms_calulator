@@ -15,7 +15,7 @@
       <TextBlock x:Name="EditorStatus" Margin="16,0,0,0" VerticalAlignment="Center"/>
     </StackPanel>
 
-        <DataGrid x:Name="EditorGrid" AutoGenerateColumns="True" Grid.Row="1" IsReadOnly="False" CellEditEnding="EditorGrid_CellEditEnding"/>
+        <DataGrid x:Name="EditorGrid" AutoGenerateColumns="True" Grid.Row="1" IsReadOnly="False" CellEditEnding="EditorGrid_CellEditEnding" AutoGeneratingColumn="EditorGrid_AutoGeneratingColumn"/>
 
     <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right">
       <Button Content="Adicionar Linha" Margin="0,0,8,0" Click="AddRow_Click"/>

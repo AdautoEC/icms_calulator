@@ -150,6 +150,7 @@
                             <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorTotalCombustivel_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
+                            <DataGridTextColumn Header="Alíquota Aplicada" Binding="{Binding AliquotaCredito, StringFormat=P0}"/>
                             <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorCredito_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>

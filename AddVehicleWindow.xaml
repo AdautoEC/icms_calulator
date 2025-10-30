@@ -32,7 +32,7 @@
         </Grid>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Adicionar" IsDefault="True" Click="Add_Click" MinWidth="80" Margin="0,0,8,0"/>
+            <Button Content="Salvar" x:Name="AddButton" IsDefault="True" Click="Save_Click" MinWidth="80" Margin="0,0,8,0"/>
             <Button Content="Cancelar" IsCancel="True" MinWidth="80"/>
         </StackPanel>
     </StackPanel>

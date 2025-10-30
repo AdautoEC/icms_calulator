@@ -6,13 +6,27 @@ namespace CsvIntegratorApp
     public partial class AddVehicleWindow : Window
     {
         public VehicleInfo? NewVehicle { get; private set; }
+        private VehicleInfo? _originalVehicle;
 
         public AddVehicleWindow()
         {
             InitializeComponent();
+            this.Title = "Adicionar Novo Veículo";
         }
 
-        private void Add_Click(object sender, RoutedEventArgs e)
+        public AddVehicleWindow(VehicleInfo vehicleToEdit) : this()
+        {
+            this.Title = "Editar Veículo";
+            _originalVehicle = vehicleToEdit;
+            PlacaTextBox.Text = vehicleToEdit.Placa;
+            RenavamTextBox.Text = vehicleToEdit.Renavam;
+            ModeloTextBox.Text = vehicleToEdit.Modelo;
+            TipoTextBox.Text = vehicleToEdit.Tipo;
+            // Change button content for editing
+            (this.FindName("AddButton") as System.Windows.Controls.Button).Content = "Salvar";
+        }
+
+        private void Save_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrWhiteSpace(PlacaTextBox.Text))
             {
@@ -20,13 +34,26 @@ namespace CsvIntegratorApp
                 return;
             }
 
-            NewVehicle = new VehicleInfo
+            if (_originalVehicle != null)
             {
-                Placa = PlacaTextBox.Text,
-                Renavam = RenavamTextBox.Text,
-                Modelo = ModeloTextBox.Text,
-                Tipo = TipoTextBox.Text
-            };
+                // Update existing vehicle
+                _originalVehicle.Placa = PlacaTextBox.Text;
+                _originalVehicle.Renavam = RenavamTextBox.Text;
+                _originalVehicle.Modelo = ModeloTextBox.Text;
+                _originalVehicle.Tipo = TipoTextBox.Text;
+                NewVehicle = _originalVehicle; // Set NewVehicle to the updated original vehicle
+            }
+            else
+            {
+                // Create new vehicle
+                NewVehicle = new VehicleInfo
+                {
+                    Placa = PlacaTextBox.Text,
+                    Renavam = RenavamTextBox.Text,
+                    Modelo = ModeloTextBox.Text,
+                    Tipo = TipoTextBox.Text
+                };
+            }
 
             this.DialogResult = true;
             this.Close();

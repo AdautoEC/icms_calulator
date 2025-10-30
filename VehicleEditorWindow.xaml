@@ -35,6 +35,16 @@
                     <DataGridTextColumn Header="Renavam" Binding="{Binding Renavam}" Width="*"/>
                     <DataGridTextColumn Header="Modelo" Binding="{Binding Modelo}" Width="2*"/>
                     <DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="2*"/>
+                    <DataGridTemplateColumn Header="Ações" Width="Auto">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Editar" Click="EditVehicle_Click" Margin="2"/>
+                                    <Button Content="Excluir" Click="DeleteVehicle_Click" Margin="2"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
                 </DataGrid.Columns>
             </DataGrid>
         </Border>
