@@ -157,8 +157,8 @@
                             <DataGridTextColumn Header="N° NF-e" Binding="{Binding NFeNumero, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding NFeNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Data Emissão" Binding="{Binding DataEmissao, StringFormat='d', UpdateSourceTrigger=PropertyChanged}">
-                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissao_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
+                            <DataGridTextColumn Header="Data Aquisição" Binding="{Binding DataAquisicao, StringFormat='d', UpdateSourceTrigger=PropertyChanged}">
+                                <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataAquisicao_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Vinculo_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>

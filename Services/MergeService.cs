@@ -115,11 +115,13 @@ namespace CsvIntegratorApp.Services
                             try { modelRow.NFeNumero = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
                         }
 
-                        if (SpedTxtLookupService.TryGetC100DataPorChave(firstCargoNfeKey, out var dt))
-                        {
-                            modelRow.DataEmissao = dt;
-                        }
-                    }
+                                                                        if (SpedTxtLookupService.TryGetC100DataPorChave(firstCargoNfeKey, out var dt))
+
+                                                                        {
+
+                                                                            modelRow.DataEmissao = dt; // This is C100 date if NFe not found
+
+                                                                        }                    }
                 }
 
                 modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("d") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
