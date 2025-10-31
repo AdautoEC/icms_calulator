@@ -16,7 +16,7 @@ Há requisitos explícitos do histórico:
 - A partir do **MDFe**, obter o **chNFe**, localizar no SPED a linha **C100** correspondente e, via **0150**, obter o **endereço** da entrega; o próximo **chNFe** refere-se à **próxima entrega** (sequência de eventos).
 - Produzir **CSV** consolidados e dashboards com métricas de rotas, quilometragem, tempos e cobertura.
 
-O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pipeline local e/ou expor um **API** para consultas remotas. Recentemente, foi adicionada uma funcionalidade que permite aos usuários ajustar manualmente as rotas incorretas através de uma nova janela de edição.
+O projeto pode existir como **app desktop Windows** (e.g. WPF/WinUI/.NET) com pipeline local e/ou expor um **API** para consultas remotas. Recentemente, foi adicionada uma funcionalidade que permite aos usuários ajustar manualmente as rotas incorretas através de uma nova janela de edição, e também um **gerenciamento de veículos** para adicionar, editar e excluir informações da frota.
 
 ---
 
@@ -130,8 +130,8 @@ Detalha cada entrega como um evento individual na rota.
 - **`cep`**: Código de Endereçamento Postal.
 - **`lat`**: Latitude do endereço de entrega.
 - **`lon`**: Longitude do endereço de entrega.
-- **`data`**: Data do documento fiscal associado.
-- **`km_acumulado`**: Distância acumulada em quilômetros desde o início da rota.
+- **`data`**: Data do documento fiscal associado (formato `dd/MM/yyyy`).
+- **`km_acumulado`**: Distância acumulada em quilômetros desde o início da rota (sem casas decimais).
 
 ### `rotas.csv`
 Descreve os segmentos de viagem entre as entregas.
@@ -140,7 +140,7 @@ Descreve os segmentos de viagem entre as entregas.
 - **`lon1`**: Longitude do ponto de partida do trecho.
 - **`lat2`**: Latitude do ponto de chegada do trecho.
 - **`lon2`**: Longitude do ponto de chegada do trecho.
-- **`km_segmento`**: Distância do trecho em quilômetros.
+- **`km_segmento`**: Distância do trecho em quilômetros (uma casa decimal).
 - **`chNFe_origem`**: Chave da NFe que marca o início do trecho.
 - **`chNFe_destino`**: Chave da NFe que marca o fim do trecho.
 
@@ -156,21 +156,18 @@ Registra quaisquer problemas encontrados durante o processamento.
 - **`ChaveNFe`**: Chave de acesso da Nota Fiscal Eletrônica.
 - **`CST`**: Código da Situação Tributária.
 - **`CFOP`**: Código Fiscal de Operações e Prestações.
-- **`ValorIcms`**: Valor do ICMS.
-- **`BaseIcms`**: Base de cálculo do ICMS.
-- **`TotalDocumento`**: Valor total do documento.
+- **`ValorIcms`**: Valor do ICMS (duas casas decimais).
+- **`BaseIcms`**: Base de cálculo do ICMS (duas casas decimais).
+- **`TotalDocumento`**: Valor total do documento (duas casas decimais).
 - **`Rua`**: Rua do destinatário.
 - **`Numero`**: Número do endereço do destinatário.
 - **`Bairro`**: Bairro do destinatário.
 - **`UF`**: UF do destinatário.
-
----
-
-## 8) UI (Quando Aplicável)
-
-- **Desktop (WPF/WinUI/.NET)**: seleção de arquivos, status de parsing, preview, filtros, botão **Exportar CSV**. A tela principal agora exibe uma única linha com dados somados.
-- **Contadores/BI**: sumários (km total, nº entregas, outliers), gráficos de barras/linha e mapa (se disponível). Os pop-ups do mapa agora mostram detalhes de cada registro C190.
-- **RouteEditorWindow**: Uma nova janela que permite aos usuários visualizar e editar os endereços de uma rota. Ao salvar, a rota é recalculada automaticamente, e a distância e o mapa são atualizados.
+- **`DataEmissao`**: Data de emissão (formato `dd/MM/yyyy`).
+- **`DataEntrada`**: Data de entrada (formato `dd/MM/yyyy`).
+- **`QuantidadeLitros`**: Quantidade de litros (quatro casas decimais).
+- **`ValorUnitario`**: Valor unitário (quatro casas decimais).
+- **`ValorTotalCombustivel`**: Valor total do combustível (duas casas decimais).
 
 ---
 

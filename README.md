@@ -37,6 +37,7 @@ O foco é **simplicidade operacional** e **confiabilidade** para equipes de neg�
 - **Exportação CSV** com cabeçalhos e formatação consistente.
 - **Relatório de importação** (registros válidos/ignorados) para auditoria.
 - **Editor de Rotas**: Permite o ajuste manual de rotas incorretas, com recálculo automático da distância.
+- **Gerenciamento de Veículos**: Funcionalidade para adicionar, editar e excluir informações da frota de veículos.
 
 ---
 
@@ -132,6 +133,7 @@ O instalador `.msi` será gerado na pasta `Installer/bin/Release/net8.0/`.
 4. Exporte o **CSV consolidado** para a pasta desejada.  
 5. Consulte o **relatório de importação** para auditoria.
 6. Se uma rota estiver incorreta, clique no botão **Ajustar Rota** na linha correspondente para abrir o editor de rotas e ajustar os endereços.
+7. Para gerenciar a frota de veículos (adicionar, editar, excluir), utilize a opção **Gerenciar Veículos**.
 
 ---
 
@@ -141,14 +143,18 @@ A especificação exata de colunas será definida nas amostras acordadas com o c
 | Coluna                   | Tipo     | Descrição                                    |
 |--------------------------|----------|----------------------------------------------|
 | `id_registro`            | string   | Identificador único do registro consolidado   |
-| `data_evento`            | date     | Data/hora do evento                           |
+| `data_evento`            | date     | Data/hora do evento (formato `dd/MM/yyyy`)  |
 | `origem_lat`             | decimal  | Latitude de origem                            |
 | `origem_lon`             | decimal  | Longitude de origem                           |
 | `destino_lat`            | decimal  | Latitude de destino                           |
 | `destino_lon`            | decimal  | Longitude de destino                          |
-| `distancia_haversine_km` | decimal  | Distância em km (linha reta)                  |
+| `distancia_haversine_km` | decimal  | Distância em km (linha reta, sem casas decimais) |
 | `categoria`              | string   | (Se aplicável) categoria/agrupador            |
 | `observacoes`            | string   | (Se aplicável) observações                     |
+| `quantidade_litros`      | decimal  | Quantidade de litros (quatro casas decimais) |
+| `valor_unitario`         | decimal  | Valor unitário (quatro casas decimais)       |
+| `valor_total_combustivel`| decimal  | Valor total do combustível (duas casas decimais) |
+| `valor_credito`          | decimal  | Valor do crédito (duas casas decimais)       |
 
 > Separador padrão: `,` (ou `;` conforme regionalização). Formatos de número e data serão normalizados.
 

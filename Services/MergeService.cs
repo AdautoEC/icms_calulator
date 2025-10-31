@@ -9,8 +9,20 @@ using CsvIntegratorApp;
 
 namespace CsvIntegratorApp.Services
 {
+    /// <summary>
+    /// Provides services for merging data from NFe, MDFe, and SPED files, 
+    /// calculating routes, and enriching <see cref="ModelRow"/> objects.
+    /// </summary>
     public static class MergeService
     {
+        /// <summary>
+        /// Merges data from NFe, MDFe, and SPED files, calculates routes, and populates a list of <see cref="ModelRow"/>.
+        /// </summary>
+        /// <param name="nfeItems">A list of parsed NFe items.</param>
+        /// <param name="mdfes">A list of parsed MDFe documents.</param>
+        /// <param name="progress">An <see cref="IProgress{T}"/> instance to report progress updates.</param>
+        /// <param name="somarRetornoParaOrigem">A boolean indicating whether to sum the return trip to the origin.</param>
+        /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, containing a list of <see cref="ModelRow"/>.</returns>
         public static async Task<List<ModelRow>> MergeAsync(
             List<NfeParsedItem>? nfeItems,
             List<MdfeParsed> mdfes,
