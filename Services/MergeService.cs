@@ -115,7 +115,7 @@ namespace CsvIntegratorApp.Services
                     }
                 }
 
-                modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("g") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
+                modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("d") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
 
                 modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
                 modelRow.Roteiro = routeResult.TotalKm.HasValue ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c))) : $"Falha no cálculo da rota: {routeResult.Error}";

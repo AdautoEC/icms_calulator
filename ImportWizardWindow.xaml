@@ -123,10 +123,10 @@
                             <DataGridTextColumn Header="MDF-e" Binding="{Binding MdfeNumero, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding MdfeNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat='g', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Data" Binding="{Binding Data, StringFormat='d', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding Data_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Distância (KM)" Binding="{Binding DistanciaPercorridaKm, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Distância (KM)" Binding="{Binding DistanciaPercorridaKm, StringFormat='F0', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DistanciaPercorridaKm_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="N° NF-e Carga" Binding="{Binding NFeCargaNumero, UpdateSourceTrigger=PropertyChanged}">
@@ -135,29 +135,29 @@
                             <DataGridTextColumn Header="Emissão Carga" Binding="{Binding DataEmissaoCarga, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissaoCarga_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Qtd (LT)" Binding="{Binding QuantidadeLitros, UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Qtd (LT)" Binding="{Binding QuantidadeLitros, StringFormat='N4', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding QuantidadeLitros_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Qtd Estimada (LT)" Binding="{Binding QuantidadeEstimadaLitros, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Qtd Estimada (LT)" Binding="{Binding QuantidadeEstimadaLitros, StringFormat='N4', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding QuantidadeEstimadaLitros_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Combustível" Binding="{Binding EspecieCombustivel, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding EspecieCombustivel_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Valor Unit." Binding="{Binding ValorUnitario, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Valor Unit." Binding="{Binding ValorUnitario, StringFormat='N4', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorUnitario_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Valor Total" Binding="{Binding ValorTotalCombustivel, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorTotalCombustivel_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Alíquota Aplicada" Binding="{Binding AliquotaCredito, StringFormat=P0}"/>
-                            <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='C', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Crédito" Binding="{Binding ValorCredito, StringFormat='N2', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding ValorCredito_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="N° NF-e" Binding="{Binding NFeNumero, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding NFeNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Data Emissão" Binding="{Binding DataEmissao, StringFormat='g', UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Data Emissão" Binding="{Binding DataEmissao, StringFormat='d', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissao_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Vínculo" Binding="{Binding Vinculo, UpdateSourceTrigger=PropertyChanged}">
