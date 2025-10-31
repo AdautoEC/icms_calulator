@@ -91,7 +91,14 @@ namespace CsvIntegratorApp.Services
                 }
 
                 var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct().ToList();
-                modelRow.NFeCargaNumero = string.Join(", ", nfeKeys);
+                modelRow.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key =>
+                {
+                    if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
+                    {
+                        return nfeNum.ToString();
+                    }
+                    return key; // Fallback to full key if parsing fails
+                }).Where(s => !string.IsNullOrWhiteSpace(s)));
 
                 var firstCargoNfeKey = nfeKeys.FirstOrDefault();
                 if (firstCargoNfeKey != null)
