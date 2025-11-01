@@ -161,7 +161,7 @@ namespace CsvIntegratorApp.Services
 
                 // Rule 1: Route passes through NFe generation location
                 var nfeLocation = $"{nfe.CidadeEmit}, {nfe.UFEmit}";
-                if (routeResult.Waypoints.Any(w => w.Address.Contains(nfe.CidadeEmit ?? "")))
+                if (routeResult.Waypoints != null && routeResult.Waypoints.Any(w => w.Address != null && w.Address.Contains(nfe.CidadeEmit ?? "")))
                 {
                     score += 10;
                     log.Append("[Local OK] ");

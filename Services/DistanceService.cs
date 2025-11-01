@@ -132,15 +132,19 @@ namespace CsvIntegratorApp.Services
                 {
                     var errorMsg = $"Falha no trecho da rota a partir do ponto {i}. Usando linha reta. Erro: {chunkResult.Error}";
                     allWarnings.Add(errorMsg);
-                    for (int j = 0; j < chunkWaypoints.Count - 1; j++) 
-                    { 
-                        if (chunkWaypoints[j].Coordinates.HasValue && chunkWaypoints[j+1].Coordinates.HasValue)
+                    for (int j = 0; j < chunkWaypoints.Count - 1; j++)
+                    {
+                        var currentWaypoint = chunkWaypoints[j];
+                        var nextWaypoint = chunkWaypoints[j + 1];
+                        if (currentWaypoint.Coordinates.HasValue && nextWaypoint.Coordinates.HasValue)
                         {
-                            var legKm = HaversineKm(chunkWaypoints[j].Coordinates.Value.Lat, chunkWaypoints[j].Coordinates.Value.Lon, chunkWaypoints[j+1].Coordinates.Value.Lat, chunkWaypoints[j+1].Coordinates.Value.Lon);
+                            var currentCoords = currentWaypoint.Coordinates.Value;
+                            var nextCoords = nextWaypoint.Coordinates.Value;
+                            var legKm = HaversineKm(currentCoords.Lat, currentCoords.Lon, nextCoords.Lat, nextCoords.Lon);
                             totalKm += legKm;
                             allLegs.Add(legKm);
-                            if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { chunkWaypoints[j].Coordinates.Value.Lat, chunkWaypoints[j].Coordinates.Value.Lon });
-                            fullPolyline.Add(new List<double> { chunkWaypoints[j+1].Coordinates.Value.Lat, chunkWaypoints[j+1].Coordinates.Value.Lon });
+                            if (j == 0 && !fullPolyline.Any()) fullPolyline.Add(new List<double> { currentCoords.Lat, currentCoords.Lon });
+                            fullPolyline.Add(new List<double> { nextCoords.Lat, nextCoords.Lon });
                         }
                     }
                 }
@@ -215,11 +219,13 @@ namespace CsvIntegratorApp.Services
             var fallbackLegs = new List<double>();
             for(int i = 0; i < validCoords.Count - 1; i++)
             {
-                var legKm = HaversineKm(validCoords[i].Lat, validCoords[i].Lon, validCoords[i+1].Lat, validCoords[i+1].Lon);
+                var currentCoords = validCoords[i];
+                var nextCoords = validCoords[i + 1];
+                var legKm = HaversineKm(currentCoords.Lat, currentCoords.Lon, nextCoords.Lat, nextCoords.Lon);
                 totalKm += legKm;
                 fallbackLegs.Add(legKm);
-                if (i == 0) fallbackPolyline.Add(new List<double> { validCoords[i].Lat, validCoords[i].Lon });
-                fallbackPolyline.Add(new List<double> { validCoords[i+1].Lat, validCoords[i+1].Lon });
+                if (i == 0) fallbackPolyline.Add(new List<double> { currentCoords.Lat, currentCoords.Lon });
+                fallbackPolyline.Add(new List<double> { nextCoords.Lat, nextCoords.Lon });
             }
 
             return new RouteResult 
