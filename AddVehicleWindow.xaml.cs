@@ -23,7 +23,11 @@ namespace CsvIntegratorApp
             ModeloTextBox.Text = vehicleToEdit.Modelo;
             TipoTextBox.Text = vehicleToEdit.Tipo;
             // Change button content for editing
-            (this.FindName("AddButton") as System.Windows.Controls.Button).Content = "Salvar";
+            var addButton = (this.FindName("AddButton") as System.Windows.Controls.Button);
+            if (addButton != null)
+            {
+                addButton.Content = "Salvar";
+            }
         }
 
         private void Save_Click(object sender, RoutedEventArgs e)

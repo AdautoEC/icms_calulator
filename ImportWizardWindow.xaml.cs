@@ -420,9 +420,9 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 7).Value = row.EspecieCombustivel;
                 worksheet.Cell(currentRow, 8).Value = "Diesel";
                 worksheet.Cell(currentRow, 9).Value = row.QuantidadeLitros;
-                worksheet.Cell(currentRow, 9).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 9).Style.NumberFormat.Format = "0.0000";
                 worksheet.Cell(currentRow, 10).Value = row.ValorUnitario;
-                worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "0.0000";
                 worksheet.Cell(currentRow, 11).Value = row.ValorTotalCombustivel;
                 worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 12).Value = row.ChaveNFe;

@@ -18,7 +18,11 @@ namespace CsvIntegratorApp
         public ModelEditorWindow(List<ModelRow> rowsToEdit)
         {
             InitializeComponent();
-            _rows = rowsToEdit; // Usa a lista vinda da janela principal
+            _rows.Clear();
+            if (rowsToEdit != null)
+            {
+                _rows.AddRange(rowsToEdit);
+            }
             EditorGrid.ItemsSource = _rows;
             EditorStatus.Text = $"Editando {_rows.Count} linha(s).";
         }
@@ -31,7 +35,12 @@ namespace CsvIntegratorApp
                 try
                 {
                     var json = File.ReadAllText(dlg.FileName);
-                    _rows = System.Text.Json.JsonSerializer.Deserialize<List<ModelRow>>(json) ?? new List<ModelRow>();
+                    var importedRows = System.Text.Json.JsonSerializer.Deserialize<List<ModelRow>>(json);
+                    _rows.Clear();
+                    if (importedRows != null)
+                    {
+                        _rows.AddRange(importedRows);
+                    }
                     EditorGrid.ItemsSource = null;
                     EditorGrid.ItemsSource = _rows;
                     EditorStatus.Text = $"Importado: {_rows.Count} linha(s).";
@@ -64,8 +73,6 @@ namespace CsvIntegratorApp
 
         private void AddRow_Click(object sender, System.Windows.RoutedEventArgs e)
         {
-            if (_rows == null) _rows = new List<ModelRow>();
-
             var sel = EditorGrid?.SelectedItem as ModelRow;
             double? aliq = sel?.AliquotaCredito ?? 0.17;
 
@@ -102,22 +109,25 @@ namespace CsvIntegratorApp
 
         private void EditorGrid_AutoGeneratingColumn(object sender, DataGridAutoGeneratingColumnEventArgs e)
         {
-            // Distancia percorrida: sem casas decimais
-            if (e.PropertyName == "DistanciaPercorridaKm")
+            if (e.Column is DataGridTextColumn textColumn)
             {
-                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:F0}";
-            }
-            // Datas: remover horas
-            else if (e.PropertyName == "Data" || e.PropertyName == "DataEmissao" || e.PropertyName == "DataAquisicao")
-            {
-                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:d}";
-            }
-            // Litros e valores monetários: 2 casas decimais
-            else if (e.PropertyName == "QuantidadeLitros" || e.PropertyName == "QuantidadeEstimadaLitros" ||
-                     e.PropertyName == "ValorUnitario" || e.PropertyName == "ValorTotalCombustivel" ||
-                     e.PropertyName == "ValorCredito")
-            {
-                (e.Column as DataGridTextColumn).Binding.StringFormat = "{0:F2}";
+                // Distancia percorrida: sem casas decimais
+                if (e.PropertyName == "DistanciaPercorridaKm")
+                {
+                    textColumn.Binding.StringFormat = "{0:F0}";
+                }
+                // Datas: remover horas
+                else if (e.PropertyName == "Data" || e.PropertyName == "DataEmissao" || e.PropertyName == "DataAquisicao")
+                {
+                    textColumn.Binding.StringFormat = "{0:d}";
+                }
+                // Litros e valores monetários: 2 casas decimais
+                else if (e.PropertyName == "QuantidadeLitros" || e.PropertyName == "QuantidadeEstimadaLitros" ||
+                         e.PropertyName == "ValorUnitario" || e.PropertyName == "ValorTotalCombustivel" ||
+                         e.PropertyName == "ValorCredito")
+                {
+                    textColumn.Binding.StringFormat = "{0:F2}";
+                }
             }
         }
     }

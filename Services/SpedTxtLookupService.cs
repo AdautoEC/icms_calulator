@@ -134,7 +134,7 @@ namespace CsvIntegratorApp.Services
             return false;
         }
 
-        public static bool TryGetC190InfoPorChave(string? chNFe, out List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)> c190Info)
+        public static bool TryGetC190InfoPorChave(string? chNFe, out List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>? c190Info)
         {
             c190Info = null;
             if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;

@@ -9,10 +9,6 @@ using CsvIntegratorApp;
 
 namespace CsvIntegratorApp.Services
 {
-    /// <summary>
-    /// Provides services for merging data from NFe, MDFe, and SPED files, 
-    /// calculating routes, and enriching <see cref="ModelRow"/> objects.
-    /// </summary>
     public static class MergeService
     {
         /// <summary>
