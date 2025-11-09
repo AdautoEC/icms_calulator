@@ -15,7 +15,7 @@ namespace CsvIntegratorApp.Services
         private static readonly Dictionary<string, (int? codMun, string? street, string? number, string? neighborhood, string? nome)> _mapPartes =
             new(StringComparer.OrdinalIgnoreCase);
 
-        // chNFe -> Data Emissão (C100)
+        // chNFe -> Data Emissão (C100)  *** mantém SEMPRE a mais recente ***
         private static readonly Dictionary<string, DateTime?> _mapChaveParaDataEmissao = new(StringComparer.OrdinalIgnoreCase);
 
         // chNFe -> C190 data
@@ -25,8 +25,10 @@ namespace CsvIntegratorApp.Services
 
         public static void LoadTxt(List<string> paths)
         {
+            // zera todos os índices para evitar “vazamento” entre execuções
             _mapChaveParaPart.Clear();
             _mapPartes.Clear();
+            _mapChaveParaDataEmissao.Clear();  // <-- faltava limpar
             _mapChaveParaC190.Clear();
             _loaded = false;
 
@@ -58,6 +60,7 @@ namespace CsvIntegratorApp.Services
                         if (!string.IsNullOrWhiteSpace(ch))
                         {
                             lastChNFe = Clean(ch);
+
                             if (!string.IsNullOrWhiteSpace(codPart))
                             {
                                 _mapChaveParaPart[lastChNFe] = codPart.Trim();
@@ -65,7 +68,11 @@ namespace CsvIntegratorApp.Services
 
                             if (DateTime.TryParseExact(dtDocStr, "ddMMyyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dtDoc))
                             {
-                                _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
+                                // mantém SEMPRE a data mais recente para a chave
+                                if (!_mapChaveParaDataEmissao.TryGetValue(lastChNFe, out var prev) || !prev.HasValue || dtDoc > prev.Value)
+                                {
+                                    _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
+                                }
                             }
                         }
                     }
@@ -145,6 +152,24 @@ namespace CsvIntegratorApp.Services
             return _mapChaveParaDataEmissao.TryGetValue(ch, out dataEmissao);
         }
 
+        /// <summary>
+        /// Retorna a data C100 mais recente dentre várias chaves.
+        /// </summary>
+        public static DateTime? TryGetMostRecentC100DateForKeys(IEnumerable<string> keys)
+        {
+            if (!_loaded) return null;
+            DateTime? best = null;
+            foreach (var k in keys ?? Array.Empty<string>())
+            {
+                var ch = Clean(k);
+                if (_mapChaveParaDataEmissao.TryGetValue(ch, out var dt) && dt.HasValue)
+                {
+                    if (!best.HasValue || dt.Value > best.Value) best = dt;
+                }
+            }
+            return best;
+        }
+
         private static string Clean(string s)
         {
             var t = new string(s.Where(char.IsLetterOrDigit).ToArray());
@@ -193,4 +218,3 @@ namespace CsvIntegratorApp.Services
         }
     }
 }
-

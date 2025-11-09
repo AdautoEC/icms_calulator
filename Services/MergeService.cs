@@ -18,11 +18,6 @@ namespace CsvIntegratorApp.Services
         /// <summary>
         /// Merges data from NFe, MDFe, and SPED files, calculates routes, and populates a list of <see cref="ModelRow"/>.
         /// </summary>
-        /// <param name="nfeItems">A list of parsed NFe items.</param>
-        /// <param name="mdfes">A list of parsed MDFe documents.</param>
-        /// <param name="progress">An <see cref="IProgress{T}"/> instance to report progress updates.</param>
-        /// <param name="somarRetornoParaOrigem">A boolean indicating whether to sum the return trip to the origin.</param>
-        /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation, containing a list of <see cref="ModelRow"/>.</returns>
         public static async Task<List<ModelRow>> MergeAsync(
             List<NfeParsedItem>? nfeItems,
             List<MdfeParsed> mdfes,
@@ -33,7 +28,11 @@ namespace CsvIntegratorApp.Services
             CalculationLogService.Log("Iniciando processo de merge e cálculo de rota.");
 
             var allModelRows = new List<ModelRow>();
-            var unmatchedFuelNfes = nfeItems?.Where(n => n.IsCombustivel && (n.DescricaoProduto ?? "").ToUpperInvariant().Contains("DIESEL")).ToList() ?? new List<NfeParsedItem>();
+
+            // Evita a mesma MDF-e aparecer mais de uma vez na saída
+            var mdfeOutputKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // Índice por chave (para recuperar dados do XML quando existir)
             var porChave = (nfeItems ?? new List<NfeParsedItem>())
                 .GroupBy(x => x.ChaveNFe ?? "", StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
@@ -41,14 +40,24 @@ namespace CsvIntegratorApp.Services
             int totalMdfes = mdfes.Count;
             int processedCount = 0;
 
+            var dieselItems = (nfeItems ?? new List<NfeParsedItem>())
+                   .Where(FuelAllocator.IsDieselItem)
+                   .ToList();
+
+            var allocator = new FuelAllocator(dieselItems);
+
+            // Totais por NF-e (DIESEL) — auditoria/log
+            var totaisDieselPorNfe = DieselTotalsService.BuildDieselTotals(nfeItems ?? new List<NfeParsedItem>());
+
             foreach (var mdfe in mdfes)
             {
                 processedCount++;
-                var percentage = 65 + (int)((double)processedCount / totalMdfes * 25); // Map progress from 65% to 90%
+                var percentage = 65 + (int)((double)processedCount / totalMdfes * 25); // 65% -> 90%
                 progress.Report(new ProgressReport { Percentage = percentage, StatusMessage = $"Calculando rota para MDF-e {processedCount}/{totalMdfes}..." });
 
                 var h = mdfe.Header;
 
+                // Origem
                 var origemCidade = h.OrigemCidade ?? h.EmitCidade;
                 var origemUF = h.UFIni ?? h.EmitUF;
                 var origemStr = (!string.IsNullOrWhiteSpace(origemCidade) && !string.IsNullOrWhiteSpace(origemUF))
@@ -60,10 +69,15 @@ namespace CsvIntegratorApp.Services
                     CalculationLogService.Log($"ERRO: Origem da viagem para o MDF-e {h.NumeroMdf} não pôde ser determinada.");
                     var mdfeRow = BaseFromMdfe(h);
                     mdfeRow.Vinculo = "Não";
-                    allModelRows.Add(mdfeRow); // Add MDFe with empty fuel info
+
+                    var outKeyErr = BuildMdfeOutputKey(h);
+                    if (mdfeOutputKeys.Add(outKeyErr))
+                        allModelRows.Add(mdfeRow);
+
                     continue;
                 }
 
+                // Waypoints: origem + destinos (tentando enriquecer com endereço do SPED)
                 var waypoints = new List<WaypointInfo> { new WaypointInfo { Address = origemStr, City = ToTitle(origemCidade), InvoiceNumber = "Origem" } };
                 foreach (var kv in mdfe.DestinosPorChave)
                 {
@@ -79,78 +93,150 @@ namespace CsvIntegratorApp.Services
 
                 var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, somarRetornoParaOrigem);
 
-                var modelRow = BaseFromMdfe(h);
-                modelRow.Waypoints = waypoints;
-
-                if (routeResult.TotalKm.HasValue)
-                {
-                    modelRow.QuantidadeEstimadaLitros = routeResult.TotalKm.Value / 3.0; // Assumed efficiency
-                }
-
-                var bestNfeMatch = TryFindBestNfeMatch(unmatchedFuelNfes, h, routeResult);
-
-                if (bestNfeMatch != null)
-                {
-                    EnriquecerComNfe(modelRow, bestNfeMatch);
-                    unmatchedFuelNfes.Remove(bestNfeMatch);
-                    modelRow.Vinculo = "Sim";
-                    CalculationLogService.Log($"MDF-e {h.NumeroMdf} vinculado à NF-e {bestNfeMatch.NumeroNFe}.");
-                }
-                else
-                {
-                    modelRow.Vinculo = "Não";
-                    CalculationLogService.Log($"Nenhuma NF-e de combustível correspondente encontrada para o MDF-e {h.NumeroMdf}.");
-                }
-
+                // Chaves da carga
                 var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct().ToList();
-                modelRow.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key =>
-                {
-                    if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
-                    {
-                        return nfeNum.ToString();
-                    }
-                    return key; // Fallback to full key if parsing fails
-                }).Where(s => !string.IsNullOrWhiteSpace(s)));
+                var cargoMostRecent = SpedTxtLookupService.TryGetMostRecentC100DateForKeys(nfeKeys);
 
+                // Extrai um número de NF-e (da carga) para exibição
+                string? nfeNumeroCarga = null;
                 var firstCargoNfeKey = nfeKeys.FirstOrDefault();
                 if (firstCargoNfeKey != null)
                 {
                     if (porChave.TryGetValue(firstCargoNfeKey, out var cargoNfe))
                     {
-                        modelRow.NFeNumero = cargoNfe.NumeroNFe;
-                        modelRow.DataEmissao = cargoNfe.DataEmissao;
+                        nfeNumeroCarga = cargoNfe.NumeroNFe;
                     }
-                    else
+                    else if (firstCargoNfeKey.Length == 44)
                     {
-                        if (firstCargoNfeKey.Length == 44)
-                        {
-                            try { modelRow.NFeNumero = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
-                        }
-
-                                                                        if (SpedTxtLookupService.TryGetC100DataPorChave(firstCargoNfeKey, out var dt))
-
-                                                                        {
-
-                                                                            modelRow.DataEmissao = dt; // This is C100 date if NFe not found
-
-                                                                        }                    }
+                        try { nfeNumeroCarga = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
+                    }
                 }
 
-                modelRow.DataEmissaoCarga = string.Join(", ", nfeKeys.Select(k => SpedTxtLookupService.TryGetC100DataPorChave(k, out var dt) ? dt?.ToString("d") : "").Where(n => !string.IsNullOrEmpty(n)).Distinct());
+                // Alvo de litros estimado pela rota
+                double? alvoLitros = routeResult.TotalKm.HasValue ? routeResult.TotalKm.Value / 3.0 : null;
 
-                modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
-                modelRow.Roteiro = routeResult.TotalKm.HasValue ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c))) : $"Falha no cálculo da rota: {routeResult.Error}";
-                modelRow.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
+                // Alocações parciais do pool de DIESEL (controla saldo por item)
+                var allocations = allocator.Allocate(alvoLitros);
 
-                allModelRows.Add(modelRow);
+                if (allocations.Any())
+                {
+                    // === CONSOLIDA TODAS AS ALOCAÇÕES DA MESMA MDF-e EM UMA ÚNICA LINHA ===
+                    var litrosTot = allocations.Sum(a => a.LitrosAlocados);
+                    var valorTotal = allocations.Sum(a => (a.Item.ValorUnitario ?? 0.0) * a.LitrosAlocados);
+                    var creditoTotal = allocations.Sum(a =>
+                    {
+                        var qtd = a.Item.Quantidade ?? 0.0;
+                        var prop = qtd > 0 ? a.LitrosAlocados / qtd : 0.0;
+                        return (a.Item.Credito ?? 0.0) * prop;
+                    });
+                    double? valorUnitMedio = litrosTot > 0 ? (valorTotal / litrosTot) : (double?)null;
+
+                    var numerosNfeAquisicao = string.Join(", ", allocations.Select(a => a.Item.NumeroNFe).Distinct());
+                    var dataAquisicaoMax = allocations.Select(a => a.Item.DataEmissao).Where(d => d.HasValue).DefaultIfEmpty().Max();
+
+                    // Monta a linha única da MDF-e
+                    var row = BaseFromMdfe(h);
+                    row.Waypoints = waypoints;
+
+                    if (routeResult.TotalKm.HasValue)
+                        row.QuantidadeEstimadaLitros = routeResult.TotalKm.Value / 3.0;
+
+                    row.DistanciaPercorridaKm = routeResult.TotalKm;
+                    row.Roteiro = routeResult.TotalKm.HasValue
+                        ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
+                        : $"Falha no cálculo da rota: {routeResult.Error}";
+                    row.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
+
+                    // Espécie do combustível (a partir das alocações)
+                    var especie =
+                        allocations.Select(a => a.Item.DescANP).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
+                        allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
+                        "ÓLEO DIESEL S-10 COMUM";
+                    row.EspecieCombustivel = especie;
+
+                    // Consolidados
+                    row.QuantidadeLitros = Math.Round(litrosTot, 6);
+                    row.ValorTotalCombustivel = Math.Round(valorTotal, 2);
+                    row.ValorUnitario = valorUnitMedio;
+                    row.ValorCredito = Math.Round(creditoTotal, 2);
+
+                    // Dados de aquisição/carga
+                    row.NFeAquisicaoNumero = numerosNfeAquisicao;
+                    row.DataAquisicao = dataAquisicaoMax;
+
+                    row.NFeCargaNumero = string.Join(", ",
+                        nfeKeys.Select(key =>
+                        {
+                            if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
+                                return nfeNum.ToString();
+                            return key;
+                        }).Where(s => !string.IsNullOrWhiteSpace(s))
+                    );
+                    row.NFeNumero = nfeNumeroCarga;
+                    row.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
+
+                    row.Vinculo = "Sim";
+
+                    var outKey = BuildMdfeOutputKey(h);
+                    if (mdfeOutputKeys.Add(outKey))
+                        allModelRows.Add(row);
+                    else
+                        CalculationLogService.Log($"Ignorado MDF-e repetido na saída (com alocação): {outKey}");
+                }
+                else
+                {
+                    // SEM alocação possível -> linha só da viagem (Vinculo = "Não")
+                    var modelRow = BaseFromMdfe(h);
+                    modelRow.Waypoints = waypoints;
+                    modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
+                    modelRow.Roteiro = routeResult.TotalKm.HasValue
+                        ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
+                        : $"Falha no cálculo da rota: {routeResult.Error}";
+                    modelRow.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
+                    modelRow.Vinculo = "Não";
+                    modelRow.NFeCargaNumero = string.Join(", ",
+                        nfeKeys.Select(key =>
+                        {
+                            if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
+                                return nfeNum.ToString();
+                            return key;
+                        }).Where(s => !string.IsNullOrWhiteSpace(s))
+                    );
+                    modelRow.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
+
+                    if (routeResult.TotalKm.HasValue)
+                        modelRow.QuantidadeEstimadaLitros = routeResult.TotalKm.Value / 3.0;
+
+                    var outKey = BuildMdfeOutputKey(h);
+                    if (mdfeOutputKeys.Add(outKey))
+                        allModelRows.Add(modelRow);
+                    else
+                        CalculationLogService.Log($"Ignorado MDF-e repetido na saída (sem alocação): {outKey}");
+                }
             }
 
-            // Add unmatched fuel NFes
-            foreach (var nfe in unmatchedFuelNfes)
+            // Auditoria: quanto de cada NF-e foi consumido
+            foreach (var dto in totaisDieselPorNfe)
             {
-                var nfeRow = BaseFromNfe(nfe);
-                nfeRow.Vinculo = "Não";
-                allModelRows.Add(nfeRow);
+                var original = dieselItems.Where(i => string.Equals(i.ChaveNFe, dto.ChaveNFe, StringComparison.OrdinalIgnoreCase))
+                                          .Sum(i => i.Quantidade ?? 0.0);
+                var remaining = dieselItems.Where(i => string.Equals(i.ChaveNFe, dto.ChaveNFe, StringComparison.OrdinalIgnoreCase))
+                                           .Sum(i => allocator.RemainingForItem(i.ChaveNFe, i.NumeroItem));
+                var consumido = original - remaining;
+                CalculationLogService.Log($"NF-e {dto.NumeroNFe} ({dto.ChaveNFe}): DIESEL Total={dto.LitrosDiesel:F3}L, Alocado={consumido:F3}L");
+            }
+
+            // Adiciona linhas de NFe de DIESEL não utilizadas (somente itens totalmente não alocados)
+            foreach (var item in dieselItems)
+            {
+                var original = item.Quantidade ?? 0.0;
+                var rem = allocator.RemainingForItem(item.ChaveNFe, item.NumeroItem);
+                if (original > 0 && Math.Abs(rem - original) < 1e-6)
+                {
+                    var nfeRow = BaseFromNfe(item);
+                    nfeRow.Vinculo = "Não";
+                    allModelRows.Add(nfeRow);
+                }
             }
 
             CalculationLogService.Log("Processo finalizado.");
@@ -158,117 +244,25 @@ namespace CsvIntegratorApp.Services
             return allModelRows;
         }
 
-        private static NfeParsedItem? TryFindBestNfeMatch(List<NfeParsedItem> fuelNfes, MdfeHeader mdfeHeader, RouteResult routeResult)
+        private static ModelRow BaseFromMdfe(MdfeHeader h)
         {
-            if (!fuelNfes.Any()) return null;
+            var vehicleInfo = VehicleService.GetVehicleInfo(h.Placa, h.Renavam);
+            var tipoVeiculo = vehicleInfo?.Tipo ?? MapTipo(h.TpRod, h.TpCar);
 
-            var scoredNfes = new List<(NfeParsedItem nfe, int score)>();
-
-            CalculationLogService.Log($"--- Iniciando busca por NF-e para o MDF-e {mdfeHeader.NumeroMdf} ---");
-
-            foreach (var nfe in fuelNfes)
+            return new ModelRow
             {
-                int score = 0;
-                var log = new StringBuilder($"Analisando NF-e {nfe.NumeroNFe}: ");
-
-                // Rule 1: Route passes through NFe generation location
-                var nfeLocation = $"{nfe.CidadeEmit}, {nfe.UFEmit}";
-                if (routeResult.Waypoints.Any(w => w.Address.Contains(nfe.CidadeEmit ?? "")))
-                {
-                    score += 10;
-                    log.Append("[Local OK] ");
-                }
-
-                // Rule 2: Emission dates are close
-                if (nfe.DataEmissao.HasValue && mdfeHeader.DhIniViagem.HasValue)
-                {
-                    var dateDiff = Math.Abs((nfe.DataEmissao.Value - mdfeHeader.DhIniViagem.Value).TotalDays);
-                    if (dateDiff <= 1)
-                    {
-                        score += 20;
-                        log.Append("[Data OK (<=1d)] ");
-                    }
-                    else if (dateDiff <= 3)
-                    {
-                        score += 10;
-                        log.Append("[Data OK (<=3d)] ");
-                    }
-                }
-
-                // Rule 3: Fuel quantity is close
-                if (routeResult.TotalKm.HasValue && nfe.Quantidade.HasValue)
-                {
-                    var estimatedConsumption = routeResult.TotalKm.Value / 3.0; // Assumed efficiency
-                    var quantityDiff = Math.Abs(estimatedConsumption - nfe.Quantidade.Value) / estimatedConsumption;
-                    if (quantityDiff <= 0.1)
-                    {
-                        score += 20;
-                        log.Append("[Qtd OK (<=10%)] ");
-                    }
-                    else if (quantityDiff <= 0.2)
-                    {
-                        score += 10;
-                        log.Append("[Qtd OK (<=20%)] ");
-                    }
-                }
-
-                // Rule 4: License plate match
-                if (!string.IsNullOrWhiteSpace(nfe.PlacaObservada) && nfe.PlacaObservada.Equals(mdfeHeader.Placa, StringComparison.OrdinalIgnoreCase))
-                {
-                    score += 30;
-                    log.Append("[Placa OK] ");
-                }
-
-                // Rule 5: Fuel values are close (10% margin)
-                if (routeResult.TotalKm.HasValue && nfe.ValorTotal.HasValue && nfe.ValorUnitario.HasValue)
-                {
-                    var estimatedConsumption = routeResult.TotalKm.Value / 3.0;
-                    var estimatedCost = estimatedConsumption * nfe.ValorUnitario.Value;
-                    var valueDiff = Math.Abs(estimatedCost - nfe.ValorTotal.Value) / estimatedCost;
-                    if (valueDiff <= 0.1)
-                    {
-                        score += 15;
-                        log.Append("[Valor OK (<=10%)] ");
-                    }
-                }
-
-                if (score > 0)
-                {
-                    log.Append($"=> PONTUAÇÃO FINAL: {score}");
-                    CalculationLogService.Log(log.ToString());
-                    scoredNfes.Add((nfe, score));
-                }
-            }
-
-            if (!scoredNfes.Any())
-            {
-                CalculationLogService.Log("Nenhuma NF-e pontuou.");
-                return null;
-            }
-
-            var bestMatch = scoredNfes.OrderByDescending(s => s.score).First();
-            CalculationLogService.Log($"--- MELHOR MATCH: NF-e {bestMatch.nfe.NumeroNFe} com {bestMatch.score} pontos ---");
-            return bestMatch.nfe;
+                Modelo = vehicleInfo?.Modelo,
+                Tipo = tipoVeiculo,
+                Renavam = h.Renavam,
+                Placa = h.Placa,
+                MdfeNumero = h.NumeroMdf,
+                Data = h.DhIniViagem ?? h.DhEmi,
+                UFEmit = h.EmitUF,
+                CidadeEmit = ToTitle(h.EmitCidade),
+                Vinculo = "Não"
+            };
         }
 
-                private static ModelRow BaseFromMdfe(MdfeHeader h)
-                {
-                    var vehicleInfo = VehicleService.GetVehicleInfo(h.Placa, h.Renavam); 
-                    var tipoVeiculo = vehicleInfo?.Tipo ?? MapTipo(h.TpRod, h.TpCar); 
-        
-                    return new ModelRow
-                    {
-                        Modelo = vehicleInfo?.Modelo, 
-                        Tipo = tipoVeiculo,
-                        Renavam = h.Renavam,
-                        Placa = h.Placa,
-                        MdfeNumero = h.NumeroMdf,
-                        Data = h.DhIniViagem ?? h.DhEmi,
-                        UFEmit = h.EmitUF,
-                        CidadeEmit = ToTitle(h.EmitCidade),
-                        Vinculo = "Não"
-                    };
-                }
         private static ModelRow BaseFromNfe(NfeParsedItem n)
         {
             return new ModelRow
@@ -291,18 +285,6 @@ namespace CsvIntegratorApp.Services
                 Placa = n.PlacaObservada,
                 Vinculo = "Não"
             };
-        }
-
-        private static void EnriquecerComNfe(ModelRow r, NfeParsedItem n)
-        {
-            r.QuantidadeLitros = n.Quantidade;
-            r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>";
-            r.ValorUnitario = n.ValorUnitario;
-            r.ValorTotalCombustivel = n.ValorTotal;
-            r.AliquotaCredito = n.Aliquota;
-            r.ValorCredito = n.Credito;
-            r.NFeAquisicaoNumero = n.NumeroNFe;
-            r.DataAquisicao = n.DataEmissao;
         }
 
         private static string? MapTipo(string? tpRod, string? tpCar)
@@ -340,5 +322,8 @@ namespace CsvIntegratorApp.Services
             var ti = CultureInfo.GetCultureInfo("pt-BR").TextInfo;
             return ti.ToTitleCase(s);
         }
+
+        private static string BuildMdfeOutputKey(MdfeHeader h)
+            => $"{h.EmitCnpj}|{h.Serie}|{h.NumeroMdf}|{h.Placa}";
     }
 }
