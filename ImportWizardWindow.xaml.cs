@@ -303,7 +303,7 @@ namespace CsvIntegratorApp
             worksheet.Cell("L3").Value = "Espécie do Combustivel";
             worksheet.Cell("M3").Value = "Valor unitário";
             worksheet.Cell("N3").Value = "Valor Total do Combustivel";
-            worksheet.Cell("O3").Value = "Valor do Crédito a ser utilizado (17%)";
+            worksheet.Cell("O3").Value = "Valor do Crédito a ser utilizado";
             worksheet.Cell("P3").Value = "N° NF-e";
             worksheet.Cell("Q3").Value = "Data de Aquisição";
 
@@ -349,25 +349,34 @@ namespace CsvIntegratorApp
 
         private void PopulateNotaAquisicaoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
         {
-            var dieselNFeItems = _allNfeItems
-                .Where(n => n.IsCombustivel && (n.DescricaoProduto ?? "").ToUpperInvariant().Contains("DIESEL"))
-                .GroupBy(n => n.ChaveNFe)
-                .Select(g => g.First())
+            var dieselRows = (_allNfeItems ?? new List<NfeParsedItem>())
+                .Where(FuelAllocator.IsDieselItem) // ANP 8201 ou descrição contendo "DIESEL"
+                .Select(i =>
+                {
+                    var litros = i.Quantidade ?? 0.0;
+                    var unit = i.ValorUnitario ?? 0.0;
+                    var total = unit * litros;
+
+                    return new ModelRow
+                    {
+                        DataEmissao = i.DataEmissao,
+                        NFeNumero = i.NumeroNFe,
+                        FornecedorCnpj = i.EmitCNPJ,
+                        FornecedorNome = i.EmitNome,
+                        FornecedorEndereco = $"{i.EmitStreet}, {i.EmitNumber} - {i.EmitNeighborhood}, {i.CidadeEmit} - {i.UFEmit}",
+                        EspecieCombustivel = i.DescANP ?? i.DescricaoProduto ?? "DIESEL",
+
+                        // <<< uma linha por ITEM de DIESEL
+                        QuantidadeLitros = Math.Round(litros, 6),
+                        ValorUnitario = unit,
+                        ValorTotalCombustivel = Math.Round(total, 2),
+
+                        ChaveNFe = i.ChaveNFe
+                    };
+                })
+                .OrderBy(r => r.DataEmissao ?? DateTime.MinValue)
                 .ToList();
 
-            var dieselRows = dieselNFeItems.Select(n => new ModelRow
-            {
-                DataEmissao = n.DataEmissao,
-                NFeNumero = n.NumeroNFe,
-                FornecedorCnpj = n.EmitCNPJ,
-                FornecedorNome = n.EmitNome,
-                FornecedorEndereco = $"{n.EmitStreet}, {n.EmitNumber} - {n.EmitNeighborhood}, {n.CidadeEmit} - {n.UFEmit}",
-                EspecieCombustivel = n.DescANP ?? n.DescricaoProduto,
-                QuantidadeLitros = n.Quantidade,
-                ValorUnitario = n.ValorUnitario,
-                ValorTotalCombustivel = n.ValorTotal,
-                ChaveNFe = n.ChaveNFe
-            }).ToList();
 
             // Summary rows for Diesel
             worksheet.Cell("C3").Value = dieselRows.Sum(r => r.QuantidadeLitros);
