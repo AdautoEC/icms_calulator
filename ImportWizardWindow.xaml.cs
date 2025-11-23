@@ -275,18 +275,18 @@ namespace CsvIntegratorApp
             worksheet.Cell("A1").Value = "Art. 62-B § 3º I";
             worksheet.Cell("E1").Value = "Art. 62-B § 3º II";
             worksheet.Cell("K1").Value = "Art. 62-B § 3º IV";
-            worksheet.Cell("N1").Value = "Art. 62-B § 3º V";
-            worksheet.Cell("P1").Value = "Art. 62-B § 3º VI";
-            worksheet.Cell("Q1").Value = "Art. 62-B § 3º VII";
+            worksheet.Cell("M1").Value = "Art. 62-B § 3º V";
+            worksheet.Cell("O1").Value = "Art. 62-B § 3º VI";
+            worksheet.Cell("P1").Value = "Art. 62-B § 3º VII";
 
             // Headers - Row 2
             worksheet.Cell("A2").Value = "Veículo Utilizado";
             worksheet.Cell("E2").Value = "Trajeto";
             worksheet.Cell("I2").Value = "Carga";
             worksheet.Cell("K2").Value = "Combustível";
-            worksheet.Cell("N2").Value = "Valor do Combustivel";
-            worksheet.Cell("P2").Value = "Crédito a ser apropriado";
-            worksheet.Cell("Q2").Value = "Nota de Aquisição do Combustível";
+            worksheet.Cell("M2").Value = "Valor do Combustivel";
+            worksheet.Cell("O2").Value = "Crédito a ser apropriado";
+            worksheet.Cell("P2").Value = "Nota de Aquisição do Combustível";
 
             // Headers - Row 3
             worksheet.Cell("A3").Value = "Modelo";
@@ -300,13 +300,12 @@ namespace CsvIntegratorApp
             worksheet.Cell("I3").Value = "N° NF-e";
             worksheet.Cell("J3").Value = "Data de Emissão";
             worksheet.Cell("K3").Value = "Quantidade Usada (LT)";
-            worksheet.Cell("L3").Value = "Qtd Total NFe (LT)";
-            worksheet.Cell("M3").Value = "Espécie do Combustivel";
-            worksheet.Cell("N3").Value = "Valor unitário";
-            worksheet.Cell("O3").Value = "Valor Total do Combustivel";
-            worksheet.Cell("P3").Value = "Valor do Crédito a ser utilizado";
-            worksheet.Cell("Q3").Value = "N° NF-e";
-            worksheet.Cell("R3").Value = "Data de Aquisição";
+            worksheet.Cell("L3").Value = "Espécie do Combustivel";
+            worksheet.Cell("M3").Value = "Valor unitário";
+            worksheet.Cell("N3").Value = "Valor Total do Combustivel";
+            worksheet.Cell("O3").Value = "Valor do Crédito a ser utilizado";
+            worksheet.Cell("P3").Value = "N° NF-e";
+            worksheet.Cell("Q3").Value = "Data de Aquisição";
 
             // Data
             int currentRow = 4;
@@ -327,24 +326,22 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "dd/MM/yyyy";
                 worksheet.Cell(currentRow, 11).Value = row.QuantidadeUsadaLitros;
                 worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.0000";
-                worksheet.Cell(currentRow, 12).Value = row.QuantidadeLitros;
-                worksheet.Cell(currentRow, 12).Style.NumberFormat.Format = "0.0000";
-                worksheet.Cell(currentRow, 13).Value = row.EspecieCombustivel;
-                worksheet.Cell(currentRow, 14).Value = row.ValorUnitario;
-                worksheet.Cell(currentRow, 14).Style.NumberFormat.Format = "0.0000";
-                worksheet.Cell(currentRow, 15).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 12).Value = row.EspecieCombustivel;
+                worksheet.Cell(currentRow, 13).Value = row.ValorUnitario;
+                worksheet.Cell(currentRow, 13).Style.NumberFormat.Format = "0.0000";
+                worksheet.Cell(currentRow, 14).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 14).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 15).Value = row.ValorCredito;
                 worksheet.Cell(currentRow, 15).Style.NumberFormat.Format = "0.00";
-                worksheet.Cell(currentRow, 16).Value = row.ValorCredito;
-                worksheet.Cell(currentRow, 16).Style.NumberFormat.Format = "0.00";
-                worksheet.Cell(currentRow, 17).Value = row.NFeAquisicaoNumero;
-                worksheet.Cell(currentRow, 18).Value = row.DataAquisicao;
-                worksheet.Cell(currentRow, 18).Style.NumberFormat.Format = "dd/MM/yyyy";
+                worksheet.Cell(currentRow, 16).Value = row.NFeAquisicaoNumero;
+                worksheet.Cell(currentRow, 17).Value = row.DataAquisicao;
+                worksheet.Cell(currentRow, 17).Style.NumberFormat.Format = "dd/MM/yyyy";
                 currentRow++;
             }
 
             if (rows.Any())
             {
-                var range = worksheet.Range(4, 1, currentRow - 1, 18);
+                var range = worksheet.Range(4, 1, currentRow - 1, 17);
                 range.Style.Border.SetOutsideBorder(XLBorderStyleValues.Thin);
                 range.Style.Border.SetInsideBorder(XLBorderStyleValues.Thin);
             }
