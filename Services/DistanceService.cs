@@ -28,7 +28,18 @@ namespace CsvIntegratorApp.Services
         private static string? GetApiKey()
         {
             if (_apiKeyCache != null) return _apiKeyCache;
-            // WARNING: API Key is hardcoded. This is a security risk.
+            
+            var keyFilePath = "ors_api_key.txt";
+            if (File.Exists(keyFilePath))
+            {
+                _apiKeyCache = File.ReadAllText(keyFilePath).Trim();
+                if (!string.IsNullOrEmpty(_apiKeyCache))
+                {
+                    return _apiKeyCache;
+                }
+            }
+            
+            // Fallback for existing hardcoded key to avoid breaking change
             _apiKeyCache = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA1Y2ZmNTZkOThjNzQ4ZDg5ZGNmNWNmMzhmOTBiNjQzIiwiaCI6Im11cm11cjY0In0=";
             return _apiKeyCache;
         }
@@ -44,6 +55,16 @@ namespace CsvIntegratorApp.Services
                 return _orsClient;
             }
             return null;
+        }
+        
+        private static bool IsOutsideBrazil(GeoPoint point)
+        {
+            const double minLat = -34.0;
+            const double maxLat = 6.0;
+            const double minLon = -74.0;
+            const double maxLon = -28.0;
+
+            return point.Lat < minLat || point.Lat > maxLat || point.Lon < minLon || point.Lon > maxLon;
         }
 
         public static async Task<RouteResult> TryRouteLegsKmAsync(List<WaypointInfo> waypoints, bool closeLoop)
@@ -65,14 +86,42 @@ namespace CsvIntegratorApp.Services
                     continue;
                 }
 
-                var c = await client.GeocodeAsync(waypoint.Address);
-                if (c is null || (c.Value.Lat == 0 && c.Value.Lon == 0))
+                var geocodedPoint = await client.GeocodeAsync(waypoint.Address);
+
+                if (geocodedPoint.HasValue && IsOutsideBrazil(geocodedPoint.Value))
+                {
+                    waypoint.IsOutsideBrazil = true;
+                    var newAddress = waypoint.Address;
+
+                    if (!string.IsNullOrWhiteSpace(waypoint.City) && !string.IsNullOrWhiteSpace(waypoint.State))
+                    {
+                        newAddress = $"{waypoint.City}, {waypoint.State}";
+                        warnings.Add($"Endereço '{waypoint.Address}' localizado fora do Brasil. Usando '{newAddress}' para nova tentativa.");
+                        waypoint.Address = newAddress;
+                        geocodedPoint = await client.GeocodeAsync(newAddress);
+                    }
+                    else if (!string.IsNullOrWhiteSpace(waypoint.City))
+                    {
+                        newAddress = waypoint.City;
+                        warnings.Add($"Endereço '{waypoint.Address}' localizado fora do Brasil. Usando apenas a cidade '{newAddress}' para nova tentativa.");
+                        waypoint.Address = newAddress;
+                        geocodedPoint = await client.GeocodeAsync(newAddress);
+                    }
+                    else
+                    {
+                        warnings.Add($"Endereço '{waypoint.Address}' localizado fora do Brasil, mas não há cidade/estado para tentar novamente.");
+                        geocodedPoint = null;
+                    }
+                }
+
+                if (geocodedPoint is null || (geocodedPoint.Value.Lat == 0 && geocodedPoint.Value.Lon == 0))
                 {
                     warnings.Add($"Falha ao geocodificar o ponto '{waypoint.Address}'. Ponto ignorado.");
+                    waypoint.Coordinates = null;
                 }
                 else
                 {
-                    waypoint.Coordinates = c.Value;
+                    waypoint.Coordinates = geocodedPoint;
                 }
             }
 

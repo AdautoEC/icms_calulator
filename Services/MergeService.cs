@@ -81,9 +81,10 @@ namespace CsvIntegratorApp.Services
                     var (destCidadeMdfe, destUfMdfe, _) = kv.Value;
                     if (SpedTxtLookupService.TryGetAddressInfoPorChave(chave, out var addrInfo))
                     {
-                        var addressParts = new[] { addrInfo.street, addrInfo.number, destCidadeMdfe, addrInfo.uf ?? destUfMdfe };
+                        var state = addrInfo.uf ?? destUfMdfe;
+                        var addressParts = new[] { addrInfo.street, addrInfo.number, destCidadeMdfe, state };
                         var destinoStr = string.Join(", ", addressParts.Where(s => !string.IsNullOrWhiteSpace(s)));
-                        waypoints.Add(new WaypointInfo { Address = destinoStr, City = ToTitle(destCidadeMdfe), InvoiceNumber = chave });
+                        waypoints.Add(new WaypointInfo { Address = destinoStr, City = ToTitle(destCidadeMdfe), State = state, InvoiceNumber = chave });
                     }
                 }
 
