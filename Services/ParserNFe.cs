@@ -58,34 +58,6 @@ namespace CsvIntegratorApp.Services
 
     public static class ParserNFe
     {
-        private static readonly Dictionary<string, string> AnpCodeToNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "820101034", "OLEO DIESEL B S10 - COMUM" },
-            { "420101005", "ÓLEO DIESEL A S1800 NÃO RODOVIÁRIO - ADITIVADO" }
-            // Outros códigos conhecidos podem ser adicionados aqui
-        };
-
-        private static string? ResolveAnpDescription(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-
-            // Se o texto for um código conhecido, retorne o nome mapeado
-            if (AnpCodeToNameMap.TryGetValue(text, out var name))
-            {
-                return name;
-            }
-
-            // Heurística: se for um código de 9 dígitos, provavelmente é um código ANP que não conhecemos.
-            // Nesse caso, é melhor retornar nulo para que a lógica possa usar outro campo de descrição.
-            if (text.Length == 9 && text.All(char.IsDigit))
-            {
-                return null;
-            }
-
-            // Se não for um código, é provavelmente uma descrição válida.
-            return text;
-        }
-
         public static List<NfeParsedItem> Parse(string xmlPath)
         {
             XDocument doc = XDocument.Load(xmlPath);
@@ -163,12 +135,7 @@ namespace CsvIntegratorApp.Services
                 string? descANP = comb?.Element(ns + "descANP")?.Value;
                 string? ufCons = comb?.Element(ns + "UFCons")?.Value;
 
-                // Tenta resolver a melhor descrição, convertendo códigos em nomes
-                string? bestDescription = ResolveAnpDescription(descANP) ?? ResolveAnpDescription(xProd);
-                if (string.IsNullOrWhiteSpace(bestDescription))
-                {
-                    bestDescription = !string.IsNullOrWhiteSpace(descANP) ? descANP : xProd;
-                }
+                string? finalDescANP = !string.IsNullOrWhiteSpace(descANP) ? descANP : cProdANP;
 
                 bool isComb = !string.IsNullOrWhiteSpace(cProdANP)
                               || (!string.IsNullOrWhiteSpace(ncm) && ncm.StartsWith("2710"))
@@ -211,7 +178,7 @@ namespace CsvIntegratorApp.Services
                     Aliquota = aliquota,
 
                     ProdANP = cProdANP,
-                    DescANP = bestDescription, // Usa a melhor descrição encontrada
+                    DescANP = finalDescANP, // Usa a melhor descrição encontrada
                     UFConsumo = ufCons,
 
                     PlacaObservada = placaInf,
