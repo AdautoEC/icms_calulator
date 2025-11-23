@@ -322,5 +322,68 @@ namespace CsvIntegratorApp.Services
 
         private static string BuildMdfeOutputKey(MdfeHeader h)
             => $"{h.EmitCnpj}|{h.Serie}|{h.NumeroMdf}|{h.Placa}";
+        
+        public static void RecalculateFuelAllocations(List<ModelRow> rows, List<NfeParsedItem> allNfeItems)
+        {
+            var dieselItems = (allNfeItems ?? new List<NfeParsedItem>())
+                   .Where(FuelAllocator.IsDieselItem)
+                   .ToList();
+
+            var allocator = new FuelAllocator(dieselItems);
+
+            foreach (var row in rows.OrderBy(r => r.Data))
+            {
+                if (string.IsNullOrEmpty(row.MdfeNumero)) continue;
+
+                double? alvoLitros = row.DistanciaPercorridaKm.HasValue ? row.DistanciaPercorridaKm.Value / 3.0 : null;
+
+                var allocations = allocator.Allocate(alvoLitros);
+
+                if (allocations.Any())
+                {
+                    var litrosTot = allocations.Sum(a => a.LitrosAlocados);
+                    var valorTotal = allocations.Sum(a => (a.Item.ValorUnitario ?? 0.0) * a.LitrosAlocados);
+                    var creditoTotal = allocations.Sum(a =>
+                    {
+                        var qtd = a.Item.Quantidade ?? 0.0;
+                        var prop = qtd > 0 ? a.LitrosAlocados / qtd : 0.0;
+                        return (a.Item.Credito ?? 0.0) * prop;
+                    });
+                    double? valorUnitMedio = litrosTot > 0 ? (valorTotal / litrosTot) : (double?)null;
+
+                    var numerosNfeAquisicao = string.Join(", ", allocations.Select(a => a.Item.NumeroNFe).Distinct());
+                    var dataAquisicaoMax = allocations.Select(a => a.Item.DataEmissao).Where(d => d.HasValue).DefaultIfEmpty().Max();
+            
+                    var especie =
+                        allocations.Select(a => a.Item.DescANP).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
+                        allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
+                        "ÓLEO DIESEL S-10 COMUM";
+
+                    // Update row properties
+                    row.QuantidadeEstimadaLitros = alvoLitros;
+                    row.EspecieCombustivel = especie;
+                    row.QuantidadeLitros = Math.Round(litrosTot, 6);
+                    row.ValorTotalCombustivel = Math.Round(valorTotal, 2);
+                    row.ValorUnitario = valorUnitMedio;
+                    row.ValorCredito = Math.Round(creditoTotal, 2);
+                    row.NFeAquisicaoNumero = numerosNfeAquisicao;
+                    row.DataAquisicao = dataAquisicaoMax;
+                    row.Vinculo = "Sim";
+                }
+                else
+                {
+                    // Reset fuel properties if no allocation was possible
+                    row.QuantidadeEstimadaLitros = alvoLitros;
+                    row.EspecieCombustivel = null;
+                    row.QuantidadeLitros = null;
+                    row.ValorTotalCombustivel = null;
+                    row.ValorUnitario = null;
+                    row.ValorCredito = null;
+                    row.NFeAquisicaoNumero = null;
+                    row.DataAquisicao = null;
+                    row.Vinculo = "Não";
+                }
+            }
+        }
     }
 }

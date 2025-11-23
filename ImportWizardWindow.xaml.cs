@@ -531,8 +531,15 @@ namespace CsvIntegratorApp
                 routeEditor.Owner = this;
                 if (routeEditor.ShowDialog() == true)
                 {
+                    // A route was changed, which affects the entire fuel allocation pool.
+                    // We need to recalculate all allocations.
+                    StatusText.Text = "Recalculando alocação de combustível após ajuste de rota...";
+                    MergeService.RecalculateFuelAllocations(_currentRows, _allNfeItems);
+                    
+                    // Refresh the grid to show updated values for all rows
                     PreviewGrid.ItemsSource = null;
                     PreviewGrid.ItemsSource = _currentRows;
+                    StatusText.Text = "Alocação de combustível recalculada.";
                 }
             }
         }
