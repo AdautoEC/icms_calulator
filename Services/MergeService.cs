@@ -46,26 +46,23 @@ namespace CsvIntegratorApp.Services
                 progress.Report(new ProgressReport { Percentage = percentage, StatusMessage = $"Calculando rota para MDF-e {processedCount}/{totalMdfes}..." });
 
                 var h = mdfe.Header;
-                var origemCidade = h.OrigemCidade ?? h.EmitCidade;
-                var origemUF = h.UFIni ?? h.EmitUF;
-                var origemStr = (!string.IsNullOrWhiteSpace(origemCidade) && !string.IsNullOrWhiteSpace(origemUF))
-                                   ? $"{ToTitle(origemCidade)}, {origemUF}"
-                                   : h.UFIni ?? h.UFFim;
+                
+                // Hardcode origin to "Itaporã, MS" as requested by the user
+                var origemCidade = "Itaporã";
+                var origemUF = "MS";
+                var origemStr = "Itaporã, MS";
 
-                if (string.IsNullOrWhiteSpace(origemStr))
+                // We no longer need to check if origemStr is null or empty since it's hardcoded.
+                // However, we can log if the MDF-e's original origin was different for auditing.
+                var originalMdfeOrigemCidade = h.OrigemCidade ?? h.EmitCidade;
+                var originalMdfeOrigemUF = h.UFIni ?? h.EmitUF;
+                if (!string.Equals(origemCidade, ToTitle(originalMdfeOrigemCidade), StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(origemUF, originalMdfeOrigemUF, StringComparison.OrdinalIgnoreCase))
                 {
-                    CalculationLogService.Log($"ERRO: Origem da viagem para o MDF-e {h.NumeroMdf} não pôde ser determinada.");
-                    var mdfeRow = BaseFromMdfe(h);
-                    mdfeRow.Vinculo = "Não";
-
-                    var outKeyErr = BuildMdfeOutputKey(h);
-                    if (mdfeOutputKeys.Add(outKeyErr))
-                        allModelRows.Add(mdfeRow);
-
-                    continue;
+                    CalculationLogService.Log($"AVISO: Origem do MDF-e {h.NumeroMdf} (original: {ToTitle(originalMdfeOrigemCidade)}, {originalMdfeOrigemUF}) foi sobrescrita para Itaporã, MS.");
                 }
 
-                var waypoints = new List<WaypointInfo> { new WaypointInfo { Address = origemStr, City = ToTitle(origemCidade), InvoiceNumber = "Origem" } };
+                var waypoints = new List<WaypointInfo> { new WaypointInfo { Address = origemStr, City = ToTitle(origemCidade), State = origemUF, InvoiceNumber = "Origem" } };
                 foreach (var kv in mdfe.DestinosPorChave)
                 {
                     var chave = kv.Key;
@@ -114,7 +111,8 @@ namespace CsvIntegratorApp.Services
                     var dataAquisicaoMax = allocations.Select(a => a.Item.DataEmissao).Where(d => d.HasValue).DefaultIfEmpty().Max();
 
                     var row = BaseFromMdfe(h);
-                    row.Waypoints = waypoints;
+                    // Use routeResult.Waypoints to ensure it includes the return segment
+                    row.Waypoints = routeResult.Waypoints; 
                     
                     var sourceNfeKey = allocations.First().Item.ChaveNFe;
                     var totalNfeQuantity = dieselItems.Where(item => item.ChaveNFe == sourceNfeKey).Sum(item => item.Quantidade ?? 0.0);
@@ -122,8 +120,9 @@ namespace CsvIntegratorApp.Services
 
                     row.QuantidadeUsadaLitros = alvoLitros;
                     row.DistanciaPercorridaKm = routeResult.TotalKm;
+                    // Use routeResult.Waypoints for Roteiro string
                     row.Roteiro = routeResult.TotalKm.HasValue
-                        ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
+                        ? string.Join(" -> ", routeResult.Waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
                         : $"Falha no cálculo da rota: {routeResult.Error}";
                     row.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
 
@@ -153,10 +152,12 @@ namespace CsvIntegratorApp.Services
                 else
                 {
                     var modelRow = BaseFromMdfe(h);
-                    modelRow.Waypoints = waypoints;
+                    // Use routeResult.Waypoints to ensure it includes the return segment
+                    modelRow.Waypoints = routeResult.Waypoints; 
                     modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
+                    // Use routeResult.Waypoints for Roteiro string
                     modelRow.Roteiro = routeResult.TotalKm.HasValue
-                        ? string.Join(" -> ", waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
+                        ? string.Join(" -> ", routeResult.Waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
                         : $"Falha no cálculo da rota: {routeResult.Error}";
                     modelRow.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
                     modelRow.Vinculo = "Não";
