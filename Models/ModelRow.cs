@@ -17,7 +17,7 @@ namespace CsvIntegratorApp.Models
         private string? _nFeCargaNumero;
         private string? _dataEmissaoCarga;
         private double? _quantidadeLitros;
-        private double? _quantidadeEstimadaLitros;
+        private double? _quantidadeUsadaLitros;
         private string? _especieCombustivel;
         private double? _valorUnitario;
         private double? _valorTotalCombustivel;
@@ -56,8 +56,8 @@ namespace CsvIntegratorApp.Models
 
         public double? QuantidadeLitros { get => _quantidadeLitros; set { if (SetField(ref _quantidadeLitros, value) && IsInitialized) { QuantidadeLitros_IsEdited = true; OnPropertyChanged(nameof(QuantidadeLitros_IsEdited)); } } }
         public bool QuantidadeLitros_IsEdited { get; private set; }
-        public double? QuantidadeEstimadaLitros { get => _quantidadeEstimadaLitros; set { if (SetField(ref _quantidadeEstimadaLitros, value) && IsInitialized) { QuantidadeEstimadaLitros_IsEdited = true; OnPropertyChanged(nameof(QuantidadeEstimadaLitros_IsEdited)); } } }
-        public bool QuantidadeEstimadaLitros_IsEdited { get; private set; }
+        public double? QuantidadeUsadaLitros { get => _quantidadeUsadaLitros; set { if (SetField(ref _quantidadeUsadaLitros, value) && IsInitialized) { QuantidadeUsadaLitros_IsEdited = true; OnPropertyChanged(nameof(QuantidadeUsadaLitros_IsEdited)); } } }
+        public bool QuantidadeUsadaLitros_IsEdited { get; private set; }
         public string? EspecieCombustivel { get => _especieCombustivel; set { if (SetField(ref _especieCombustivel, value) && IsInitialized) { EspecieCombustivel_IsEdited = true; OnPropertyChanged(nameof(EspecieCombustivel_IsEdited)); } } }
         public bool EspecieCombustivel_IsEdited { get; private set; }
 
