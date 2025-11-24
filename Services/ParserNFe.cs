@@ -117,15 +117,35 @@ namespace CsvIntegratorApp.Services
                 double? vUn = TryD(prod?.Element(ns + "vUnCom")?.Value);
                 double? vProd = TryD(prod?.Element(ns + "vProd")?.Value);
                 double aliquota = 0.0;
-                if (!string.IsNullOrWhiteSpace(cfop))
+                if (!string.IsNullOrWhiteSpace(cfop) && cfop.Length >= 1)
                 {
-                    if (cfop.StartsWith("5"))
+                    char cfopFirstDigit = cfop[0];
+                    if (cfopFirstDigit == '2') // Operação interestadual
                     {
-                        aliquota = 0.17; // 17%
+                        if (!string.IsNullOrWhiteSpace(ufEmit))
+                        {
+                            string originRegion = GetRegion(ufEmit);
+                            if (originRegion == "Sul" || originRegion == "Sudeste")
+                            {
+                                aliquota = 0.07; // 7%
+                            }
+                            else if (originRegion == "Norte" || originRegion == "Nordeste" || originRegion == "Centro-Oeste")
+                            {
+                                aliquota = 0.12; // 12%
+                            }
+                        }
                     }
-                    else if (cfop.StartsWith("6"))
+                    else if (cfopFirstDigit == '1') // Operação interna
                     {
-                        aliquota = 0.07; // 7%
+                        if (!string.IsNullOrWhiteSpace(ufEmit) && ufEmit.Equals("MS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            aliquota = 0.17; // 17% for MS
+                        }
+                        else
+                        {
+                            // Para os demais estados → manter alíquota interna padrão (sem mudança)
+                            aliquota = 0.17; // Default internal rate
+                        }
                     }
                 }
                 double? credito = vProd * aliquota;
@@ -227,6 +247,19 @@ namespace CsvIntegratorApp.Services
             var rx = new Regex(@"\b([A-Z]{3}-?\d[A-Z0-9]\d{2})\b", RegexOptions.IgnoreCase);
             var m = rx.Match(text);
             return m.Success ? m.Groups[1].Value.ToUpperInvariant().Replace("-", "") : null;
+        }
+
+        private static string GetRegion(string uf)
+        {
+            return uf.ToUpperInvariant() switch
+            {
+                "RS" or "SC" or "PR" => "Sul",
+                "SP" or "RJ" or "MG" or "ES" => "Sudeste",
+                "DF" or "GO" or "MT" or "MS" => "Centro-Oeste",
+                "BA" or "SE" or "AL" or "PE" or "PB" or "RN" or "CE" or "PI" or "MA" => "Nordeste",
+                "AM" or "PA" or "AP" or "RO" or "RR" or "TO" or "AC" => "Norte",
+                _ => "Desconhecida"
+            };
         }
     }
 }
