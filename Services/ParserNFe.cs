@@ -116,7 +116,7 @@ namespace CsvIntegratorApp.Services
                 double? qCom = TryD(prod?.Element(ns + "qCom")?.Value);
                 double? vUn = TryD(prod?.Element(ns + "vUnCom")?.Value);
                 double? vProd = TryD(prod?.Element(ns + "vProd")?.Value);
-                double aliquota = 0.0;
+                double aliquota = 0.17;
                 if (!string.IsNullOrWhiteSpace(cfop) && cfop.Length >= 1)
                 {
                     char cfopFirstDigit = cfop[0];
