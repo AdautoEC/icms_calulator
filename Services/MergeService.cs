@@ -133,6 +133,7 @@ namespace CsvIntegratorApp.Services
                     row.ValorTotalCombustivel = Math.Round(valorTotal, 2);
                     row.ValorUnitario = valorUnitMedio;
                     row.ValorCredito = Math.Round(creditoTotal, 2);
+                    row.AliquotaCredito = allocations.First().Item.Aliquota; // Assign aliquot from the first allocated item
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
                     row.DataAquisicao = dataAquisicaoMax;
                     row.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key => {
