@@ -87,9 +87,15 @@ namespace CsvIntegratorApp.Services.ApiClients
                 
                 if (doc.RootElement.TryGetProperty("features", out var features) && features.GetArrayLength() > 0)
                 {
-                    if (features[0].TryGetProperty("geometry", out var geometry) && geometry.TryGetProperty("coordinates", out var coords))
+                    if (features[0].TryGetProperty("geometry", out var geometry) && 
+                        geometry.TryGetProperty("coordinates", out var coords) &&
+                        coords.GetArrayLength() >= 2)
                     {
-                        var point = new GeoPoint { Lon = coords[0].GetDouble(), Lat = coords[1].GetDouble() };
+                        var point = new GeoPoint 
+                        { 
+                            Lon = coords[0].GetDouble(), 
+                            Lat = coords[1].GetDouble() 
+                        };
                         _geoCache[place] = point;
                         SaveGeoCache();
                         return point;

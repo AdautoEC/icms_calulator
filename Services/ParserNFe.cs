@@ -58,34 +58,6 @@ namespace CsvIntegratorApp.Services
 
     public static class ParserNFe
     {
-        private static readonly Dictionary<string, string> AnpCodeToNameMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "820101034", "OLEO DIESEL B S10 - COMUM" },
-            { "420101005", "ÓLEO DIESEL A S1800 NÃO RODOVIÁRIO - ADITIVADO" }
-            // Outros códigos conhecidos podem ser adicionados aqui
-        };
-
-        private static string? ResolveAnpDescription(string? text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-
-            // Se o texto for um código conhecido, retorne o nome mapeado
-            if (AnpCodeToNameMap.TryGetValue(text, out var name))
-            {
-                return name;
-            }
-
-            // Heurística: se for um código de 9 dígitos, provavelmente é um código ANP que não conhecemos.
-            // Nesse caso, é melhor retornar nulo para que a lógica possa usar outro campo de descrição.
-            if (text.Length == 9 && text.All(char.IsDigit))
-            {
-                return null;
-            }
-
-            // Se não for um código, é provavelmente uma descrição válida.
-            return text;
-        }
-
         public static List<NfeParsedItem> Parse(string xmlPath)
         {
             XDocument doc = XDocument.Load(xmlPath);
@@ -144,16 +116,36 @@ namespace CsvIntegratorApp.Services
                 double? qCom = TryD(prod?.Element(ns + "qCom")?.Value);
                 double? vUn = TryD(prod?.Element(ns + "vUnCom")?.Value);
                 double? vProd = TryD(prod?.Element(ns + "vProd")?.Value);
-                double aliquota = 0.0;
-                if (!string.IsNullOrWhiteSpace(cfop))
+                double aliquota = 0.17;
+                if (!string.IsNullOrWhiteSpace(cfop) && cfop.Length >= 1)
                 {
-                    if (cfop.StartsWith("5"))
+                    char cfopFirstDigit = cfop[0];
+                    if (cfopFirstDigit == '2') // Operação interestadual
                     {
-                        aliquota = 0.17; // 17%
+                        if (!string.IsNullOrWhiteSpace(ufEmit))
+                        {
+                            string originRegion = GetRegion(ufEmit);
+                            if (originRegion == "Sul" || originRegion == "Sudeste")
+                            {
+                                aliquota = 0.07; // 7%
+                            }
+                            else if (originRegion == "Norte" || originRegion == "Nordeste" || originRegion == "Centro-Oeste")
+                            {
+                                aliquota = 0.12; // 12%
+                            }
+                        }
                     }
-                    else if (cfop.StartsWith("6"))
+                    else if (cfopFirstDigit == '1') // Operação interna
                     {
-                        aliquota = 0.07; // 7%
+                        if (!string.IsNullOrWhiteSpace(ufEmit) && ufEmit.Equals("MS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            aliquota = 0.17; // 17% for MS
+                        }
+                        else
+                        {
+                            // Para os demais estados → manter alíquota interna padrão (sem mudança)
+                            aliquota = 0.17; // Default internal rate
+                        }
                     }
                 }
                 double? credito = vProd * aliquota;
@@ -163,12 +155,7 @@ namespace CsvIntegratorApp.Services
                 string? descANP = comb?.Element(ns + "descANP")?.Value;
                 string? ufCons = comb?.Element(ns + "UFCons")?.Value;
 
-                // Tenta resolver a melhor descrição, convertendo códigos em nomes
-                string? bestDescription = ResolveAnpDescription(descANP) ?? ResolveAnpDescription(xProd);
-                if (string.IsNullOrWhiteSpace(bestDescription))
-                {
-                    bestDescription = !string.IsNullOrWhiteSpace(descANP) ? descANP : xProd;
-                }
+                string? finalDescANP = !string.IsNullOrWhiteSpace(descANP) ? descANP : cProdANP;
 
                 bool isComb = !string.IsNullOrWhiteSpace(cProdANP)
                               || (!string.IsNullOrWhiteSpace(ncm) && ncm.StartsWith("2710"))
@@ -211,7 +198,7 @@ namespace CsvIntegratorApp.Services
                     Aliquota = aliquota,
 
                     ProdANP = cProdANP,
-                    DescANP = bestDescription, // Usa a melhor descrição encontrada
+                    DescANP = finalDescANP, // Usa a melhor descrição encontrada
                     UFConsumo = ufCons,
 
                     PlacaObservada = placaInf,
@@ -260,6 +247,19 @@ namespace CsvIntegratorApp.Services
             var rx = new Regex(@"\b([A-Z]{3}-?\d[A-Z0-9]\d{2})\b", RegexOptions.IgnoreCase);
             var m = rx.Match(text);
             return m.Success ? m.Groups[1].Value.ToUpperInvariant().Replace("-", "") : null;
+        }
+
+        private static string GetRegion(string uf)
+        {
+            return uf.ToUpperInvariant() switch
+            {
+                "RS" or "SC" or "PR" => "Sul",
+                "SP" or "RJ" or "MG" or "ES" => "Sudeste",
+                "DF" or "GO" or "MT" or "MS" => "Centro-Oeste",
+                "BA" or "SE" or "AL" or "PE" or "PB" or "RN" or "CE" or "PI" or "MA" => "Nordeste",
+                "AM" or "PA" or "AP" or "RO" or "RR" or "TO" or "AC" => "Norte",
+                _ => "Desconhecida"
+            };
         }
     }
 }

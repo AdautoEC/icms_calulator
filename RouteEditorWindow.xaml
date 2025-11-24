@@ -12,6 +12,15 @@
         </Grid.RowDefinitions>
 
         <DataGrid x:Name="WaypointsGrid" Grid.Row="0" AutoGenerateColumns="False" CanUserAddRows="True" CanUserDeleteRows="True">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsOutsideBrazil}" Value="True">
+                            <Setter Property="Foreground" Value="Red"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Endereço" Binding="{Binding Address}" Width="*"/>
             </DataGrid.Columns>

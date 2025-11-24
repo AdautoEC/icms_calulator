@@ -299,7 +299,7 @@ namespace CsvIntegratorApp
             worksheet.Cell("H3").Value = "Distância Percorrida (KM)";
             worksheet.Cell("I3").Value = "N° NF-e";
             worksheet.Cell("J3").Value = "Data de Emissão";
-            worksheet.Cell("K3").Value = "Quantidade (LT)";
+            worksheet.Cell("K3").Value = "Quantidade Usada (LT)";
             worksheet.Cell("L3").Value = "Espécie do Combustivel";
             worksheet.Cell("M3").Value = "Valor unitário";
             worksheet.Cell("N3").Value = "Valor Total do Combustivel";
@@ -324,7 +324,7 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 9).Value = row.NFeCargaNumero;
                 worksheet.Cell(currentRow, 10).Value = row.DataEmissaoCarga;
                 worksheet.Cell(currentRow, 10).Style.NumberFormat.Format = "dd/MM/yyyy";
-                worksheet.Cell(currentRow, 11).Value = row.QuantidadeEstimadaLitros;
+                worksheet.Cell(currentRow, 11).Value = row.QuantidadeUsadaLitros;
                 worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.0000";
                 worksheet.Cell(currentRow, 12).Value = row.EspecieCombustivel;
                 worksheet.Cell(currentRow, 13).Value = row.ValorUnitario;
@@ -531,8 +531,15 @@ namespace CsvIntegratorApp
                 routeEditor.Owner = this;
                 if (routeEditor.ShowDialog() == true)
                 {
+                    // A route was changed, which affects the entire fuel allocation pool.
+                    // We need to recalculate all allocations.
+                    StatusText.Text = "Recalculando alocação de combustível após ajuste de rota...";
+                    MergeService.RecalculateFuelAllocations(_currentRows, _allNfeItems);
+                    
+                    // Refresh the grid to show updated values for all rows
                     PreviewGrid.ItemsSource = null;
                     PreviewGrid.ItemsSource = _currentRows;
+                    StatusText.Text = "Alocação de combustível recalculada.";
                 }
             }
         }

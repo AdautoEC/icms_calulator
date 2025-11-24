@@ -55,12 +55,29 @@ namespace CsvIntegratorApp.Services
 
         public static VehicleInfo? GetVehicleInfo(string? placa, string? renavam)
         {
-            if (string.IsNullOrWhiteSpace(placa) || string.IsNullOrWhiteSpace(renavam)) return null;
+            if (string.IsNullOrWhiteSpace(placa)) return null; // Placa is always required
+
             if (!_loaded) LoadVehicles();
 
-            return _vehicles.FirstOrDefault(v => 
-                v.Placa?.Equals(placa, StringComparison.OrdinalIgnoreCase) == true && 
-                v.Renavam?.Equals(renavam, StringComparison.OrdinalIgnoreCase) == true);
+            // Try to match by both Placa and Renavam if Renavam is provided
+            if (!string.IsNullOrWhiteSpace(renavam))
+            {
+                var vehicle = _vehicles.FirstOrDefault(v =>
+                    v.Placa?.Equals(placa, StringComparison.OrdinalIgnoreCase) == true &&
+                    v.Renavam?.Equals(renavam, StringComparison.OrdinalIgnoreCase) == true);
+                if (vehicle != null) return vehicle;
+            }
+
+            // If Renavam is not provided, or no match was found with Renavam, try to match by Placa alone
+            var foundVehicle = _vehicles.FirstOrDefault(v =>
+                v.Placa?.Equals(placa, StringComparison.OrdinalIgnoreCase) == true);
+
+            if (foundVehicle == null)
+            {
+                CalculationLogService.Log($"Veículo com Placa '{placa}' e Renavam '{renavam}' não encontrado em vehicles.json.");
+            }
+
+            return foundVehicle;
         }
     }
 }
