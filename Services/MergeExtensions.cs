@@ -16,7 +16,7 @@ namespace CsvIntegratorApp.Services
             var proporcao = qtdTotal > 0 ? litrosAlocados / qtdTotal : 0.0;
 
             r.QuantidadeLitros = litrosAlocados;
-            r.EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>";
+            r.EspecieCombustivel = n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>";
 
             r.ValorUnitario = n.ValorUnitario;
             r.ValorTotalCombustivel = (n.ValorUnitario ?? 0.0) * litrosAlocados;
