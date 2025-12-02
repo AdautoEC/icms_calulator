@@ -19,6 +19,8 @@ namespace CsvIntegratorApp.Services.Sped
         public string? CodPart { get; set; }
         public DateTime? DtDoc { get; set; }
         public string? NumDoc { get; set; }
+
+        public int? IndOper { get; set; }
     }
 
     public sealed class SpedEfdData
@@ -59,6 +61,14 @@ namespace CsvIntegratorApp.Services.Sped
                 }
                 else if (reg == "C100")
                 {
+                    // f[2] = IND_OPER
+                    var indOperStr = Get(f, 2);
+                    if (!int.TryParse(indOperStr, out var indOper) || indOper != 1)
+                    {
+                        // não é saída -> ignora
+                        continue;
+                    }
+
                     // C100 (modelo 55): 04 COD_PART, 05 COD_MOD, 08 NUM_DOC, 09 CHV_NFE, 10 DT_DOC
                     var codMod = Get(f, 5);
                     if (codMod != "55") continue; // só NF-e
@@ -69,6 +79,7 @@ namespace CsvIntegratorApp.Services.Sped
                     data.NfeByChave[chave] = new SpedNFeDoc
                     {
                         ChaveNFe = chave,
+                        IndOper = indOper,
                         CodPart = Get(f, 4),
                         NumDoc = Get(f, 8),
                         DtDoc = ParseData(Get(f, 10))
