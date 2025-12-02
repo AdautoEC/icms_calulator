@@ -37,7 +37,7 @@ namespace CsvIntegratorApp.Services
         public static bool IsDieselItem(NfeParsedItem n)
         {
             var anp = (n.ProdANP ?? "").Trim();
-            var desc = (n.DescANP ?? n.DescricaoProduto ?? "").ToUpperInvariant();
+            var desc = (n.DescricaoProduto ?? "OLEO DIESEL").ToUpperInvariant();
             if (!string.IsNullOrWhiteSpace(anp) && anp.StartsWith("8201")) return true; // família diesel
             return desc.Contains("DIESEL");
         }
