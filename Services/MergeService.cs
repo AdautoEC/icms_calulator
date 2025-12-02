@@ -46,7 +46,7 @@ namespace CsvIntegratorApp.Services
                 progress.Report(new ProgressReport { Percentage = percentage, StatusMessage = $"Calculando rota para MDF-e {processedCount}/{totalMdfes}..." });
 
                 var h = mdfe.Header;
-                
+
                 // Hardcode origin to "Itaporã, MS" as requested by the user
                 var origemCidade = "Itaporã";
                 var origemUF = "MS";
@@ -77,20 +77,38 @@ namespace CsvIntegratorApp.Services
                 }
 
                 var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, somarRetornoParaOrigem);
-                var nfeKeys = mdfe.DestinosPorChave.Keys.Distinct().ToList();
-                var cargoMostRecent = SpedTxtLookupService.TryGetMostRecentC100DateForKeys(nfeKeys);
-                string? nfeNumeroCarga = null;
-                var firstCargoNfeKey = nfeKeys.FirstOrDefault();
-                if (firstCargoNfeKey != null)
+
+                // todas as chaves que o MDF-e lista
+                var nfeKeysAll = mdfe.DestinosPorChave.Keys
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                // mantém APENAS NF-e que aparecem no SPED como C100 de SAÍDA
+                var nfeKeysSaida = nfeKeysAll
+                    .Where(k => SpedTxtLookupService.IsSaidaNFe(k))
+                    .ToList();
+
+                // se não sobrou nada → MDF-e só com nota de ENTRADA → ignora
+                if (nfeKeysSaida.Count == 0)
                 {
-                    if (porChave.TryGetValue(firstCargoNfeKey, out var cargoNfe))
-                    {
-                        nfeNumeroCarga = cargoNfe.NumeroNFe;
-                    }
-                    else if (firstCargoNfeKey.Length == 44)
-                    {
-                        try { nfeNumeroCarga = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
-                    }
+                    CalculationLogService.Log(
+                        $"Ignorado MDF-e {mdfe.Header.Serie}/{mdfe.Header.NumeroMdf}: nenhuma NF-e de saída encontrada no SPED.");
+                    continue;
+                }
+
+                // usa apenas as notas de saída para data/numeração da CARGA
+                var cargoMostRecent = SpedTxtLookupService.TryGetMostRecentC100DateForKeys(nfeKeysSaida);
+                string? nfeNumeroCarga = null;
+                var firstCargoNfeKey = nfeKeysSaida.FirstOrDefault();
+                if (firstCargoNfeKey != null && porChave.TryGetValue(firstCargoNfeKey, out var item))
+                {
+                    nfeNumeroCarga = item.NumeroNFe;
+                }
+
+                else if (firstCargoNfeKey.Length == 44)
+                {
+                    try { nfeNumeroCarga = long.Parse(firstCargoNfeKey.Substring(25, 9)).ToString(); } catch { }
                 }
 
                 double? alvoLitros = routeResult.TotalKm.HasValue ? routeResult.TotalKm.Value / 3.0 : null;
@@ -112,8 +130,8 @@ namespace CsvIntegratorApp.Services
 
                     var row = BaseFromMdfe(h);
                     // Use routeResult.Waypoints to ensure it includes the return segment
-                    row.Waypoints = routeResult.Waypoints; 
-                    
+                    row.Waypoints = routeResult.Waypoints;
+
                     var sourceNfeKey = allocations.First().Item.ChaveNFe;
                     var totalNfeQuantity = dieselItems.Where(item => item.ChaveNFe == sourceNfeKey).Sum(item => item.Quantidade ?? 0.0);
                     row.QuantidadeLitros = totalNfeQuantity;
@@ -135,8 +153,10 @@ namespace CsvIntegratorApp.Services
                     row.AliquotaCredito = allocations.First().Item.Aliquota; // Assign aliquot from the first allocated item
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
                     row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
-                    row.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key => {
-                        if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum)) return nfeNum.ToString();
+                    row.NFeCargaNumero = string.Join(", ", nfeKeysSaida.Select(key =>
+                    {
+                        if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
+                            return nfeNum.ToString();
                         return key;
                     }).Where(s => !string.IsNullOrWhiteSpace(s)));
                     row.NFeNumero = nfeNumeroCarga;
@@ -153,7 +173,7 @@ namespace CsvIntegratorApp.Services
                 {
                     var modelRow = BaseFromMdfe(h);
                     // Use routeResult.Waypoints to ensure it includes the return segment
-                    modelRow.Waypoints = routeResult.Waypoints; 
+                    modelRow.Waypoints = routeResult.Waypoints;
                     modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
                     // Use routeResult.Waypoints for Roteiro string
                     modelRow.Roteiro = routeResult.TotalKm.HasValue
@@ -161,10 +181,13 @@ namespace CsvIntegratorApp.Services
                         : $"Falha no cálculo da rota: {routeResult.Error}";
                     modelRow.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
                     modelRow.Vinculo = "Não";
-                    modelRow.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key => {
-                        if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum)) return nfeNum.ToString();
+                    modelRow.NFeCargaNumero = string.Join(", ", nfeKeysSaida.Select(key =>
+                    {
+                        if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
+                            return nfeNum.ToString();
                         return key;
                     }).Where(s => !string.IsNullOrWhiteSpace(s)));
+
                     modelRow.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
                     modelRow.QuantidadeUsadaLitros = alvoLitros;
 
@@ -200,7 +223,7 @@ namespace CsvIntegratorApp.Services
             CalculationLogService.Save();
             return allModelRows;
         }
-        
+
         public static void RecalculateFuelAllocations(List<ModelRow> rows, List<NfeParsedItem> allNfeItems)
         {
             var dieselItems = (allNfeItems ?? new List<NfeParsedItem>())
@@ -230,10 +253,10 @@ namespace CsvIntegratorApp.Services
                     var numerosNfeAquisicao = string.Join(", ", allocations.Select(a => a.Item.NumeroNFe).Distinct());
                     var dataAquisicaoMax = allocations.Select(a => a.Item.DataEmissao).Where(d => d.HasValue).DefaultIfEmpty().Max();
                     var especie = allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "ÓLEO DIESEL S-10 COMUM";
-                    
+
                     var sourceNfeKey = allocations.First().Item.ChaveNFe;
                     var totalNfeQuantity = dieselItems.Where(item => item.ChaveNFe == sourceNfeKey).Sum(item => item.Quantidade ?? 0.0);
-                    
+
                     row.QuantidadeLitros = totalNfeQuantity;
                     row.QuantidadeUsadaLitros = alvoLitros;
                     row.EspecieCombustivel = especie;

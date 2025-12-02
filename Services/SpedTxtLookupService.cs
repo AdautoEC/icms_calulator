@@ -54,12 +54,29 @@ namespace CsvIntegratorApp.Services
 
                     if (reg == "C100")
                     {
+                        // sempre resetar antes de um novo documento
+                        lastChNFe = null;
+
                         // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|dt_doc|...
+                        // cols[0] = "", cols[1] = "C100", cols[2] = ind_oper
+                        string? indOper = cols.Length > 2 ? cols[2]?.Trim() : null; // 0 = entrada, 1 = saída
+
+                        // queremos APENAS notas de SAÍDA
+                        if (indOper != "1")
+                        {
+                            // é entrada (ou valor estranho) → ignora ESTE C100,
+                            // mas continua lendo o resto do arquivo
+                            continue;
+                        }
+
                         string? codPart = cols.Length > 4 ? cols[4] : null;
                         string? dtDocStr = cols.Length > 10 ? cols[10] : null;
 
-                        // procura a primeira coluna com 44 dígitos como chave
-                        string? ch = cols.FirstOrDefault(c => c != null && c.Length == 44 && c.All(char.IsDigit));
+                        // procura a primeira coluna com 44 dígitos como chave da NF-e
+                        string? ch = cols.FirstOrDefault(c =>
+                            !string.IsNullOrWhiteSpace(c) &&
+                            c.Length == 44 &&
+                            c.All(char.IsDigit));
 
                         if (!string.IsNullOrWhiteSpace(ch))
                         {
@@ -70,10 +87,18 @@ namespace CsvIntegratorApp.Services
                                 _mapChaveParaPart[lastChNFe] = codPart.Trim();
                             }
 
-                            if (DateTime.TryParseExact(dtDocStr, "ddMMyyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dtDoc))
+                            if (!string.IsNullOrWhiteSpace(dtDocStr) &&
+                                DateTime.TryParseExact(
+                                    dtDocStr,
+                                    "ddMMyyyy",
+                                    CultureInfo.InvariantCulture,
+                                    DateTimeStyles.None,
+                                    out var dtDoc))
                             {
-                                // mantém SEMPRE a data mais recente para a chave
-                                if (!_mapChaveParaDataEmissao.TryGetValue(lastChNFe, out var prev) || !prev.HasValue || dtDoc > prev.Value)
+                                // mantém SEMPRE a data mais recente para essa chave
+                                if (!_mapChaveParaDataEmissao.TryGetValue(lastChNFe, out var prev) ||
+                                    !prev.HasValue ||
+                                    dtDoc > prev.Value)
                                 {
                                     _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
                                 }
@@ -200,6 +225,16 @@ namespace CsvIntegratorApp.Services
                 }
             }
             return best;
+        }
+
+        public static bool IsSaidaNFe(string? chaveNFe)
+        {
+            if (!_loaded || string.IsNullOrWhiteSpace(chaveNFe))
+                return false;
+
+            var ch = Clean(chaveNFe);
+            // _mapChaveParaDataEmissao só foi alimentado com C100 de SAÍDA
+            return _mapChaveParaDataEmissao.ContainsKey(ch);
         }
 
         private static string Clean(string s)
