@@ -10,10 +10,10 @@ namespace CsvIntegratorApp.Models
         private string? _renavam;
         private string? _placa;
         private string? _mdfeNumero;
-        private System.DateTime? _data;
+        private string? _data;
         private double? _distanciaPercorridaKm;
         private string? _nFeNumero;
-        private System.DateTime? _dataEmissao;
+        private string? _dataEmissao;
         private string? _nFeCargaNumero;
         private string? _dataEmissaoCarga;
         private double? _quantidadeLitros;
@@ -23,7 +23,7 @@ namespace CsvIntegratorApp.Models
         private double? _valorTotalCombustivel;
         private double? _valorCredito;
         private string? _nFeAquisicaoNumero;
-        private System.DateTime? _dataAquisicao;
+        private string? _dataAquisicao;
         private string? _vinculo;
 
         public bool IsInitialized { get; set; }
@@ -39,7 +39,7 @@ namespace CsvIntegratorApp.Models
 
         public string? MdfeNumero { get => _mdfeNumero; set { if (SetField(ref _mdfeNumero, value) && IsInitialized) { MdfeNumero_IsEdited = true; OnPropertyChanged(nameof(MdfeNumero_IsEdited)); } } }
         public bool MdfeNumero_IsEdited { get; private set; }
-        public System.DateTime? Data { get => _data; set { if (SetField(ref _data, value) && IsInitialized) { Data_IsEdited = true; OnPropertyChanged(nameof(Data_IsEdited)); } } }
+        public string? Data { get => _data; set { if (SetField(ref _data, value) && IsInitialized) { Data_IsEdited = true; OnPropertyChanged(nameof(Data_IsEdited)); } } }
         public bool Data_IsEdited { get; private set; }
         public string? Roteiro { get; set; }
         public double? DistanciaPercorridaKm { get => _distanciaPercorridaKm; set { if (SetField(ref _distanciaPercorridaKm, value) && IsInitialized) { DistanciaPercorridaKm_IsEdited = true; OnPropertyChanged(nameof(DistanciaPercorridaKm_IsEdited)); } } }
@@ -47,7 +47,7 @@ namespace CsvIntegratorApp.Models
 
         public string? NFeNumero { get => _nFeNumero; set { if (SetField(ref _nFeNumero, value) && IsInitialized) { NFeNumero_IsEdited = true; OnPropertyChanged(nameof(NFeNumero_IsEdited)); } } }
         public bool NFeNumero_IsEdited { get; private set; }
-        public System.DateTime? DataEmissao { get => _dataEmissao; set { if (SetField(ref _dataEmissao, value) && IsInitialized) { DataEmissao_IsEdited = true; OnPropertyChanged(nameof(DataEmissao_IsEdited)); } } }
+        public string? DataEmissao { get => _dataEmissao; set { if (SetField(ref _dataEmissao, value) && IsInitialized) { DataEmissao_IsEdited = true; OnPropertyChanged(nameof(DataEmissao_IsEdited)); } } }
         public bool DataEmissao_IsEdited { get; private set; }
         public string? NFeCargaNumero { get => _nFeCargaNumero; set { if (SetField(ref _nFeCargaNumero, value) && IsInitialized) { NFeCargaNumero_IsEdited = true; OnPropertyChanged(nameof(NFeCargaNumero_IsEdited)); } } }
         public bool NFeCargaNumero_IsEdited { get; private set; }
@@ -72,7 +72,7 @@ namespace CsvIntegratorApp.Models
 
         public string? NFeAquisicaoNumero { get => _nFeAquisicaoNumero; set { if (SetField(ref _nFeAquisicaoNumero, value) && IsInitialized) { NFeAquisicaoNumero_IsEdited = true; OnPropertyChanged(nameof(NFeAquisicaoNumero_IsEdited)); } } }
         public bool NFeAquisicaoNumero_IsEdited { get; private set; }
-        public System.DateTime? DataAquisicao { get => _dataAquisicao; set { if (SetField(ref _dataAquisicao, value) && IsInitialized) { DataAquisicao_IsEdited = true; OnPropertyChanged(nameof(DataAquisicao_IsEdited)); } } }
+        public string? DataAquisicao { get => _dataAquisicao; set { if (SetField(ref _dataAquisicao, value) && IsInitialized) { DataAquisicao_IsEdited = true; OnPropertyChanged(nameof(DataAquisicao_IsEdited)); } } }
         public bool DataAquisicao_IsEdited { get; private set; }
 
         public string? ChaveNFe { get; set; }

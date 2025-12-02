@@ -126,8 +126,7 @@ namespace CsvIntegratorApp.Services
                         : $"Falha no cálculo da rota: {routeResult.Error}";
                     row.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
 
-                    var especie = allocations.Select(a => a.Item.DescANP).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
-                                  allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "ÓLEO DIESEL S-10 COMUM";
+                    var especie = allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "ÓLEO DIESEL S-10 COMUM";
                     row.EspecieCombustivel = especie;
 
                     row.ValorTotalCombustivel = Math.Round(valorTotal, 2);
@@ -135,7 +134,7 @@ namespace CsvIntegratorApp.Services
                     row.ValorCredito = Math.Round(creditoTotal, 2);
                     row.AliquotaCredito = allocations.First().Item.Aliquota; // Assign aliquot from the first allocated item
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
-                    row.DataAquisicao = dataAquisicaoMax;
+                    row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
                     row.NFeCargaNumero = string.Join(", ", nfeKeys.Select(key => {
                         if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum)) return nfeNum.ToString();
                         return key;
@@ -230,8 +229,7 @@ namespace CsvIntegratorApp.Services
                     double? valorUnitMedio = litrosAlocados > 0 ? (valorTotal / litrosAlocados) : (double?)null;
                     var numerosNfeAquisicao = string.Join(", ", allocations.Select(a => a.Item.NumeroNFe).Distinct());
                     var dataAquisicaoMax = allocations.Select(a => a.Item.DataEmissao).Where(d => d.HasValue).DefaultIfEmpty().Max();
-                    var especie = allocations.Select(a => a.Item.DescANP).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ??
-                                  allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "ÓLEO DIESEL S-10 COMUM";
+                    var especie = allocations.Select(a => a.Item.DescricaoProduto).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? "ÓLEO DIESEL S-10 COMUM";
                     
                     var sourceNfeKey = allocations.First().Item.ChaveNFe;
                     var totalNfeQuantity = dieselItems.Where(item => item.ChaveNFe == sourceNfeKey).Sum(item => item.Quantidade ?? 0.0);
@@ -243,7 +241,7 @@ namespace CsvIntegratorApp.Services
                     row.ValorUnitario = valorUnitMedio;
                     row.ValorCredito = Math.Round(creditoTotal, 2);
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
-                    row.DataAquisicao = dataAquisicaoMax;
+                    row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
                     row.Vinculo = "Sim";
                 }
                 else
@@ -273,7 +271,7 @@ namespace CsvIntegratorApp.Services
                 Renavam = h.Renavam,
                 Placa = h.Placa,
                 MdfeNumero = h.NumeroMdf,
-                Data = h.DhIniViagem ?? h.DhEmi,
+                Data = h.DhIniViagem?.ToString("dd/MM/yyyy") ?? h.DhEmi?.ToString("dd/MM/yyyy"),
                 UFEmit = h.EmitUF,
                 CidadeEmit = ToTitle(h.EmitCidade),
                 Vinculo = "Não"
@@ -285,9 +283,9 @@ namespace CsvIntegratorApp.Services
             return new ModelRow
             {
                 NFeNumero = n.NumeroNFe,
-                DataEmissao = n.DataEmissao,
+                DataEmissao = n.DataEmissao?.ToString("dd/MM/yyyy"),
                 QuantidadeLitros = n.Quantidade,
-                EspecieCombustivel = n.DescANP ?? n.DescricaoProduto ?? $"sem descrição:<{n.CodigoProduto}>",
+                EspecieCombustivel = n.DescricaoProduto ?? "OLEO DIESEL",
                 ValorUnitario = n.ValorUnitario,
                 ValorTotalCombustivel = n.ValorTotal,
                 AliquotaCredito = n.Aliquota,

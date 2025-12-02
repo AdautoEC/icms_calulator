@@ -25,7 +25,7 @@ namespace CsvIntegratorApp.Services
             r.ValorCredito = (n.Credito ?? 0.0) * proporcao;
 
             r.NFeAquisicaoNumero = n.NumeroNFe;
-            r.DataAquisicao = n.DataEmissao;
+            r.DataAquisicao = n.DataEmissao?.ToString("dd/MM/yyyy");
         }
     }
 }

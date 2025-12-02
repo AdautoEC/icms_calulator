@@ -359,12 +359,12 @@ namespace CsvIntegratorApp
 
                     return new ModelRow
                     {
-                        DataEmissao = i.DataEmissao,
+                        DataEmissao = i.DataEmissao?.ToString("dd/MM/yyyy"),
                         NFeNumero = i.NumeroNFe,
                         FornecedorCnpj = i.EmitCNPJ,
                         FornecedorNome = i.EmitNome,
                         FornecedorEndereco = $"{i.EmitStreet}, {i.EmitNumber} - {i.EmitNeighborhood}, {i.CidadeEmit} - {i.UFEmit}",
-                        EspecieCombustivel = i.DescANP ?? i.DescricaoProduto ?? "DIESEL",
+                        EspecieCombustivel = i.DescricaoProduto ?? "DIESEL",
 
                         // <<< uma linha por ITEM de DIESEL
                         QuantidadeLitros = Math.Round(litros, 6),
@@ -374,7 +374,7 @@ namespace CsvIntegratorApp
                         ChaveNFe = i.ChaveNFe
                     };
                 })
-                .OrderBy(r => r.DataEmissao ?? DateTime.MinValue)
+                .OrderBy(r => r.DataEmissao ?? DateTime.MinValue.ToString("dd/MM/yyyy"))
                 .ToList();
 
 
