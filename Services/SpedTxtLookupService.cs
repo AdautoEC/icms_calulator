@@ -21,6 +21,9 @@ namespace CsvIntegratorApp.Services
         // chNFe -> C190 data
         private static readonly Dictionary<string, List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>> _mapChaveParaC190 = new(StringComparer.OrdinalIgnoreCase);
 
+        // chNFe -> C170 data
+        private static readonly Dictionary<string, List<(string? numItem, string? codItem, decimal? qtd, decimal? vlItem, decimal? vlIcms, string? cfop)>> _mapChaveParaC170 = new(StringComparer.OrdinalIgnoreCase);
+
         private static bool _loaded;
 
         public static void LoadTxt(List<string> paths)
@@ -30,6 +33,7 @@ namespace CsvIntegratorApp.Services
             _mapPartes.Clear();
             _mapChaveParaDataEmissao.Clear();  // <-- faltava limpar
             _mapChaveParaC190.Clear();
+            _mapChaveParaC170.Clear();
             _loaded = false;
 
             foreach (var path in paths)
@@ -74,6 +78,25 @@ namespace CsvIntegratorApp.Services
                                     _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
                                 }
                             }
+                        }
+                    }
+                    else if (reg == "C170")
+                    {
+                        if (lastChNFe != null)
+                        {
+                            // |C170|NUM_ITEM|COD_ITEM|DESCR_COMPL|QTD|UNID|VL_ITEM|VL_DESC|IND_MOV|CST_ICMS|CFOP|COD_NAT|VL_BC_ICMS|ALIQ_ICMS|VL_ICMS|...
+                            string? numItem = cols.Length > 2 ? cols[2] : null;
+                            string? codItem = cols.Length > 3 ? cols[3] : null;
+                            decimal? qtd = cols.Length > 5 && decimal.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out var valQtd) ? valQtd : null;
+                            decimal? vlItem = cols.Length > 7 && decimal.TryParse(cols[7], NumberStyles.Any, CultureInfo.InvariantCulture, out var valItem) ? valItem : null;
+                            string? cfop = cols.Length > 11 ? cols[11] : null;
+                            decimal? vlIcms = cols.Length > 15 && decimal.TryParse(cols[15], NumberStyles.Any, CultureInfo.InvariantCulture, out var valIcms) ? valIcms : null;
+                            
+                            if (!_mapChaveParaC170.ContainsKey(lastChNFe))
+                            {
+                                _mapChaveParaC170[lastChNFe] = new List<(string? numItem, string? codItem, decimal? qtd, decimal? vlItem, decimal? vlIcms, string? cfop)>();
+                            }
+                            _mapChaveParaC170[lastChNFe].Add((numItem, codItem, qtd, vlItem, vlIcms, cfop));
                         }
                     }
                     else if (reg == "C190")
@@ -141,6 +164,15 @@ namespace CsvIntegratorApp.Services
 
             var ch = Clean(chNFe);
             return _mapChaveParaC190.TryGetValue(ch, out c190Info);
+        }
+
+        public static bool TryGetC170InfoPorChave(string? chNFe, out List<(string? numItem, string? codItem, decimal? qtd, decimal? vlItem, decimal? vlIcms, string? cfop)>? c170Info)
+        {
+            c170Info = null;
+            if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
+
+            var ch = Clean(chNFe);
+            return _mapChaveParaC170.TryGetValue(ch, out c170Info);
         }
 
         public static bool TryGetC100DataPorChave(string? chNFe, out DateTime? dataEmissao)

@@ -1,10 +1,10 @@
-// Services/ParserNFe.cs
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using System.Diagnostics; // Added for Debug.WriteLine
 
 namespace CsvIntegratorApp.Services
 {
@@ -72,6 +72,7 @@ namespace CsvIntegratorApp.Services
                     chave = chave.Substring(3);
                 }
             }
+            Debug.WriteLine($"[ParserNFe] Parsing NFe: {chave}");
 
             var ide = doc.Descendants(ns + "ide").FirstOrDefault();
             string? nNF = ide?.Element(ns + "nNF")?.Value;
@@ -101,6 +102,9 @@ namespace CsvIntegratorApp.Services
             string? infCpl = doc.Descendants(ns + "infCpl").Select(x => x.Value).FirstOrDefault();
             string? placaInf = TryFindPlaca(infCpl);
 
+            // Tenta carregar dados do C170 (SPED) para usar o CFOP de lá
+            SpedTxtLookupService.TryGetC170InfoPorChave(chave, out var c170Data);
+
             var list = new List<NfeParsedItem>();
             foreach (var det in doc.Descendants(ns + "det"))
             {
@@ -110,7 +114,22 @@ namespace CsvIntegratorApp.Services
                 string? cProd = prod?.Element(ns + "cProd")?.Value;
                 string? xProd = prod?.Element(ns + "xProd")?.Value;
                 string? ncm = prod?.Element(ns + "NCM")?.Value;
-                string? cfop = prod?.Element(ns + "CFOP")?.Value;
+                
+                string? cfopFromXml = prod?.Element(ns + "CFOP")?.Value;
+                string? cfop = cfopFromXml; // Default to XML value
+                string cfopSource = "XML";
+
+                // Prioriza o CFOP do registro C170, se encontrado
+                if (c170Data != null && nItem.HasValue)
+                {
+                    var c170Item = c170Data.FirstOrDefault(c => c.numItem == nItem.Value.ToString());
+                    if (c170Item != default && !string.IsNullOrWhiteSpace(c170Item.cfop))
+                    {
+                        cfop = c170Item.cfop;
+                        cfopSource = "C170";
+                    }
+                }
+
                 string? uCom = prod?.Element(ns + "uCom")?.Value;
 
                 double? qCom = TryD(prod?.Element(ns + "qCom")?.Value);
@@ -125,6 +144,7 @@ namespace CsvIntegratorApp.Services
                         if (!string.IsNullOrWhiteSpace(ufEmit))
                         {
                             string originRegion = GetRegion(ufEmit);
+                            Debug.WriteLine($"[ParserNFe] NFe: {chave}, Item: {nItem}, UF Emit: {ufEmit}, Region: {originRegion}, CFOP starts with '2'.");
                             if (originRegion == "Sul" || originRegion == "Sudeste")
                             {
                                 aliquota = 0.07; // 7%
@@ -133,6 +153,7 @@ namespace CsvIntegratorApp.Services
                             {
                                 aliquota = 0.12; // 12%
                             }
+                            Debug.WriteLine($"[ParserNFe] NFe: {chave}, Item: {nItem}, Resulting Aliquota (Interstate): {aliquota}");
                         }
                     }
                     else if (cfopFirstDigit == '1') // Operação interna
@@ -140,11 +161,13 @@ namespace CsvIntegratorApp.Services
                         if (!string.IsNullOrWhiteSpace(ufEmit) && ufEmit.Equals("MS", StringComparison.OrdinalIgnoreCase))
                         {
                             aliquota = 0.17; // 17% for MS
+                            Debug.WriteLine($"[ParserNFe] NFe: {chave}, Item: {nItem}, UF Emit: {ufEmit} (MS Match), CFOP starts with '1', Aliquota: {aliquota}");
                         }
                         else
                         {
                             // Para os demais estados → manter alíquota interna padrão (sem mudança)
                             aliquota = 0.17; // Default internal rate
+                            Debug.WriteLine($"[ParserNFe] NFe: {chave}, Item: {nItem}, UF Emit: {ufEmit} (No MS Match), CFOP starts with '1', Aliquota: {aliquota}");
                         }
                     }
                 }
