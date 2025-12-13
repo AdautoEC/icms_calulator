@@ -18,6 +18,9 @@ namespace CsvIntegratorApp.Services
         // chNFe -> Data Emissão (C100)  *** mantém SEMPRE a mais recente ***
         private static readonly Dictionary<string, DateTime?> _mapChaveParaDataEmissao = new(StringComparer.OrdinalIgnoreCase);
 
+        // chNFe -> Data Entrada/Saída (DT_E_S)
+        private static readonly Dictionary<string, DateTime?> _mapChaveParaDataEntrada = new(StringComparer.OrdinalIgnoreCase);
+
         // chNFe -> C190 data
         private static readonly Dictionary<string, List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>> _mapChaveParaC190 = new(StringComparer.OrdinalIgnoreCase);
 
@@ -32,6 +35,7 @@ namespace CsvIntegratorApp.Services
             _mapChaveParaPart.Clear();
             _mapPartes.Clear();
             _mapChaveParaDataEmissao.Clear();  // <-- faltava limpar
+            _mapChaveParaDataEntrada.Clear();
             _mapChaveParaC190.Clear();
             _mapChaveParaC170.Clear();
             _loaded = false;
@@ -57,31 +61,34 @@ namespace CsvIntegratorApp.Services
                         // sempre resetar antes de um novo documento
                         lastChNFe = null;
 
-                        // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|dt_doc|...
-                        // cols[0] = "", cols[1] = "C100", cols[2] = ind_oper
+                        // |C100|ind_oper|ind_emit|cod_part|cod_mod|cod_sit|ser|num_doc|chv_nfe|dt_doc|dt_e_s|...
                         string? indOper = cols.Length > 2 ? cols[2]?.Trim() : null; // 0 = entrada, 1 = saída
+                        string? codMod = cols.Length > 5 ? cols[5]?.Trim() : null;
 
-                        // queremos APENAS notas de SAÍDA
-                        if (indOper != "1")
-                        {
-                            // é entrada (ou valor estranho) → ignora ESTE C100,
-                            // mas continua lendo o resto do arquivo
+                        // só NF-e
+                        if (codMod != "55")
                             continue;
-                        }
 
                         string? codPart = cols.Length > 4 ? cols[4] : null;
-                        string? dtDocStr = cols.Length > 10 ? cols[10] : null;
+                        string? dtDocStr = cols.Length > 10 ? cols[10] : null; // DT_DOC
+                        string? dtEntradaStr = cols.Length > 11 ? cols[11] : null; // DT_E_S
 
-                        // procura a primeira coluna com 44 dígitos como chave da NF-e
+                        // procura a chave NF-e (44 dígitos)
                         string? ch = cols.FirstOrDefault(c =>
                             !string.IsNullOrWhiteSpace(c) &&
                             c.Length == 44 &&
                             c.All(char.IsDigit));
 
-                        if (!string.IsNullOrWhiteSpace(ch))
-                        {
-                            lastChNFe = Clean(ch);
+                        if (string.IsNullOrWhiteSpace(ch))
+                            continue;
 
+                        lastChNFe = Clean(ch);
+
+                        // ==============================
+                        // SAÍDA → demonstrativo
+                        // ==============================
+                        if (indOper == "1")
+                        {
                             if (!string.IsNullOrWhiteSpace(codPart))
                             {
                                 _mapChaveParaPart[lastChNFe] = codPart.Trim();
@@ -95,13 +102,30 @@ namespace CsvIntegratorApp.Services
                                     DateTimeStyles.None,
                                     out var dtDoc))
                             {
-                                // mantém SEMPRE a data mais recente para essa chave
+                                // mantém a data mais recente
                                 if (!_mapChaveParaDataEmissao.TryGetValue(lastChNFe, out var prev) ||
                                     !prev.HasValue ||
                                     dtDoc > prev.Value)
                                 {
                                     _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
                                 }
+                            }
+                        }
+
+                        // ==============================
+                        // ENTRADA → aquisição combustível
+                        // ==============================
+                        if (indOper == "0")
+                        {
+                            if (!string.IsNullOrWhiteSpace(dtEntradaStr) &&
+                                DateTime.TryParseExact(
+                                    dtEntradaStr,
+                                    "ddMMyyyy",
+                                    CultureInfo.InvariantCulture,
+                                    DateTimeStyles.None,
+                                    out var dtEntrada))
+                            {
+                                _mapChaveParaDataEntrada[lastChNFe] = dtEntrada;
                             }
                         }
                     }
@@ -116,7 +140,7 @@ namespace CsvIntegratorApp.Services
                             decimal? vlItem = cols.Length > 7 && decimal.TryParse(cols[7], NumberStyles.Any, CultureInfo.InvariantCulture, out var valItem) ? valItem : null;
                             string? cfop = cols.Length > 11 ? cols[11] : null;
                             decimal? vlIcms = cols.Length > 15 && decimal.TryParse(cols[15], NumberStyles.Any, CultureInfo.InvariantCulture, out var valIcms) ? valIcms : null;
-                            
+
                             if (!_mapChaveParaC170.ContainsKey(lastChNFe))
                             {
                                 _mapChaveParaC170[lastChNFe] = new List<(string? numItem, string? codItem, decimal? qtd, decimal? vlItem, decimal? vlIcms, string? cfop)>();
@@ -243,6 +267,15 @@ namespace CsvIntegratorApp.Services
             if (t.StartsWith("NFE", StringComparison.OrdinalIgnoreCase))
                 t = t.Substring(3);
             return t;
+        }
+
+        public static bool TryGetC100DataEntradaPorChave(string? chNFe, out DateTime? dataEntrada)
+        {
+            dataEntrada = null;
+            if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
+
+            var ch = Clean(chNFe);
+            return _mapChaveParaDataEntrada.TryGetValue(ch, out dataEntrada);
         }
 
         // mapeia os dois primeiros dígitos do COD_MUN (IBGE) para UF

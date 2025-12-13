@@ -402,11 +402,21 @@ namespace CsvIntegratorApp
             int currentRow = 9;
             foreach (var row in dieselRows)
             {
+                if (string.IsNullOrWhiteSpace(row.NFeNumero) ||
+                    row.QuantidadeLitros == null ||
+                    row.QuantidadeLitros <= 0 ||
+                    row.ValorTotalCombustivel == null ||
+                    row.ValorTotalCombustivel <= 0)
+                {
+                    continue;
+                }
+
                 // Tenta obter a data de entrada do C100 usando a chave da NFe
                 DateTime? dataEntrada = null;
-                if (SpedTxtLookupService.TryGetC100DataPorChave(row.ChaveNFe, out var dtEntrada))
+
+                if (SpedTxtLookupService.TryGetC100DataEntradaPorChave(row.ChaveNFe, out var dtEnt))
                 {
-                    dataEntrada = dtEntrada;
+                    dataEntrada = dtEnt;
                 }
 
                 worksheet.Cell(currentRow, 1).Value = row.DataEmissao;

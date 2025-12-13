@@ -78,6 +78,22 @@ namespace CsvIntegratorApp.Services
 
                 var routeResult = await DistanceService.TryRouteLegsKmAsync(waypoints, somarRetornoParaOrigem);
 
+                // >>> CORREÇÃO: não gerar linhas com rota inválida ou incompleta
+                if (!routeResult.TotalKm.HasValue || routeResult.TotalKm.Value <= 0)
+                {
+                    CalculationLogService.Log(
+                        $"Ignorado MDF-e {h.Serie}/{h.NumeroMdf}: rota inválida ou distância não calculada.");
+                    continue;
+                }
+
+                if (routeResult.Waypoints == null || routeResult.Waypoints.Count < 2)
+                {
+                    CalculationLogService.Log(
+                        $"Ignorado MDF-e {h.Serie}/{h.NumeroMdf}: pontos insuficientes para cálculo de rota.");
+                    continue;
+                }
+
+
                 // todas as chaves que o MDF-e lista
                 var nfeKeysAll = mdfe.DestinosPorChave.Keys
                     .Where(k => !string.IsNullOrWhiteSpace(k))
@@ -150,7 +166,49 @@ namespace CsvIntegratorApp.Services
                     row.ValorTotalCombustivel = Math.Round(valorTotal, 2);
                     row.ValorUnitario = valorUnitMedio;
                     row.ValorCredito = Math.Round(creditoTotal, 2);
-                    row.AliquotaCredito = allocations.First().Item.Aliquota; // Assign aliquot from the first allocated item
+
+                    var itemBase = allocations.First().Item;
+                    double aliquotaCredito;
+
+                    // CFOP vem do SPED (C190 ou C170)
+                    string? cfop = null;
+
+                    if (SpedTxtLookupService.TryGetC190InfoPorChave(itemBase.ChaveNFe, out var c190) &&
+                        c190 != null && c190.Any())
+                    {
+                        cfop = c190.First().cfop;
+                    }
+                    else if (SpedTxtLookupService.TryGetC170InfoPorChave(itemBase.ChaveNFe, out var c170) &&
+                             c170 != null && c170.Any())
+                    {
+                        cfop = c170.First().cfop;
+                    }
+
+                    cfop ??= "";
+
+                    // Regra ICMS
+                    if (cfop.StartsWith("2")) // interestadual
+                    {
+                        var ufOrigem = itemBase.UFEmit?.ToUpperInvariant();
+
+                        if (ufOrigem == "RS" || ufOrigem == "SC" || ufOrigem == "PR" ||
+                            ufOrigem == "SP" || ufOrigem == "RJ" || ufOrigem == "MG")
+                        {
+                            aliquotaCredito = 7.0;
+                        }
+                        else
+                        {
+                            aliquotaCredito = 12.0;
+                        }
+                    }
+                    else
+                    {
+                        // operação interna
+                        aliquotaCredito = itemBase.Aliquota ?? 0.0;
+                    }
+
+                    row.AliquotaCredito = aliquotaCredito;
+
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
                     row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
                     row.NFeCargaNumero = string.Join(", ", nfeKeysSaida.Select(key =>
@@ -171,16 +229,38 @@ namespace CsvIntegratorApp.Services
                 }
                 else
                 {
+                    // MDF-e sem alocação de combustível
+                    // Regra de negócio: permitido para ajuste manual posterior
+
                     var modelRow = BaseFromMdfe(h);
-                    // Use routeResult.Waypoints to ensure it includes the return segment
+
                     modelRow.Waypoints = routeResult.Waypoints;
                     modelRow.DistanciaPercorridaKm = routeResult.TotalKm;
-                    // Use routeResult.Waypoints for Roteiro string
+
                     modelRow.Roteiro = routeResult.TotalKm.HasValue
-                        ? string.Join(" -> ", routeResult.Waypoints.Select(w => w.City).Where(c => !string.IsNullOrWhiteSpace(c)))
-                        : $"Falha no cálculo da rota: {routeResult.Error}";
-                    modelRow.MapPath = RouteLogService.GenerateRouteMap(routeResult.Polyline, routeResult.Waypoints, new List<ModelRow>());
+                        ? string.Join(" -> ", routeResult.Waypoints
+                            .Select(w => w.City)
+                            .Where(c => !string.IsNullOrWhiteSpace(c)))
+                        : "Rota não calculada";
+
+                    modelRow.MapPath = RouteLogService.GenerateRouteMap(
+                        routeResult.Polyline,
+                        routeResult.Waypoints,
+                        new List<ModelRow>());
+
                     modelRow.Vinculo = "Não";
+
+                    // 🔒 CAMPOS DE COMBUSTÍVEL DEVEM SER NULOS (edição manual)
+                    modelRow.QuantidadeLitros = null;
+                    modelRow.QuantidadeUsadaLitros = null;
+                    modelRow.EspecieCombustivel = null;
+                    modelRow.ValorTotalCombustivel = null;
+                    modelRow.ValorUnitario = null;
+                    modelRow.ValorCredito = null;
+                    modelRow.NFeAquisicaoNumero = null;
+                    modelRow.DataAquisicao = null;
+
+                    // 🔒 CAMPOS DE CARGA (sempre presentes)
                     modelRow.NFeCargaNumero = string.Join(", ", nfeKeysSaida.Select(key =>
                     {
                         if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
@@ -189,13 +269,13 @@ namespace CsvIntegratorApp.Services
                     }).Where(s => !string.IsNullOrWhiteSpace(s)));
 
                     modelRow.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
-                    modelRow.QuantidadeUsadaLitros = alvoLitros;
 
                     var outKey = BuildMdfeOutputKey(h);
                     if (mdfeOutputKeys.Add(outKey))
                         allModelRows.Add(modelRow);
                     else
-                        CalculationLogService.Log($"Ignorado MDF-e repetido na saída (sem alocação): {outKey}");
+                        CalculationLogService.Log(
+                            $"Ignorado MDF-e repetido na saída (sem alocação): {outKey}");
                 }
             }
 
@@ -207,16 +287,21 @@ namespace CsvIntegratorApp.Services
                 CalculationLogService.Log($"NF-e {dto.NumeroNFe} ({dto.ChaveNFe}): DIESEL Total={dto.LitrosDiesel:F3}L, Alocado={consumido:F3}L");
             }
 
+
+            // Adiciona NF-e de diesel não alocadas (vamos usar no futuro para gerar uma nova planilha de controle)
             foreach (var item in dieselItems)
             {
-                var original = item.Quantidade ?? 0.0;
-                var rem = allocator.RemainingForItem(item.ChaveNFe, item.NumeroItem);
-                if (original > 0 && Math.Abs(rem - original) < 1e-6)
-                {
-                    var nfeRow = BaseFromNfe(item);
-                    nfeRow.Vinculo = "Não";
-                    allModelRows.Add(nfeRow);
-                }
+                CalculationLogService.Log(
+                    $"NF-e {item.NumeroNFe} ignorada no demonstrativo: combustível não alocado a MDF-e.");
+
+                //var original = item.Quantidade ?? 0.0;
+                //var rem = allocator.RemainingForItem(item.ChaveNFe, item.NumeroItem);
+                //if (original > 0 && Math.Abs(rem - original) < 1e-6)
+                //{
+                //    var nfeRow = BaseFromNfe(item);
+                //    nfeRow.Vinculo = "Não";
+                //    allModelRows.Add(nfeRow);
+                //}
             }
 
             CalculationLogService.Log("Processo finalizado.");

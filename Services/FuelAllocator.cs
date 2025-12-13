@@ -34,13 +34,34 @@ namespace CsvIntegratorApp.Services
             _remaining = _items.ToDictionary(kv => kv.Key, kv => kv.Value.Quantidade ?? 0.0);
         }
 
-        public static bool IsDieselItem(NfeParsedItem n)
+        public static bool IsDieselItem(NfeParsedItem item)
         {
-            var anp = (n.ProdANP ?? "").Trim();
-            var desc = (n.DescricaoProduto ?? "OLEO DIESEL").ToUpperInvariant();
-            if (!string.IsNullOrWhiteSpace(anp) && anp.StartsWith("8201")) return true; // família diesel
-            return desc.Contains("DIESEL");
+            if (item == null) return false;
+
+            var desc = (item.DescricaoProduto ?? "").ToUpperInvariant();
+
+            // EXCLUI explicitamente LUBRIFICANTES
+            if (desc.Contains("LUB") ||
+                desc.Contains("LUBRIFICANTE") ||
+                desc.Contains("MOBIL") ||
+                desc.Contains("DEL VAC") ||
+                desc.Contains("DEL VAC") ||
+                desc.Contains("15W") ||
+                desc.Contains("20W") ||
+                desc.Contains("SAE"))
+            {
+                return false;
+            }
+
+            // ACEITA APENAS DIESEL COMERCIAL
+            return
+                desc.Contains("OLEO DIESEL") ||
+                desc.Contains("DIESEL COMUM") ||
+                desc.Contains("DIESEL B") ||
+                desc.Contains("S10") ||
+                desc.Contains("S500");
         }
+
 
         /// <summary>
         /// Allocate up to alvoLitros from the remaining pool, allowing partial usage of items.

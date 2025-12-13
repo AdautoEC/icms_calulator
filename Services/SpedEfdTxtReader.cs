@@ -18,6 +18,7 @@ namespace CsvIntegratorApp.Services.Sped
         public string ChaveNFe { get; set; } = "";
         public string? CodPart { get; set; }
         public DateTime? DtDoc { get; set; }
+        public DateTime? DtEntrada { get; set; }
         public string? NumDoc { get; set; }
 
         public int? IndOper { get; set; }
@@ -82,7 +83,8 @@ namespace CsvIntegratorApp.Services.Sped
                         IndOper = indOper,
                         CodPart = Get(f, 4),
                         NumDoc = Get(f, 8),
-                        DtDoc = ParseData(Get(f, 10))
+                        DtDoc = ParseData(Get(f, 10)),
+                        DtEntrada = ParseData(Get(f, 11))
                     };
                 }
             }
