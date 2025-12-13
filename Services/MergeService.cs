@@ -194,11 +194,11 @@ namespace CsvIntegratorApp.Services
                         if (ufOrigem == "RS" || ufOrigem == "SC" || ufOrigem == "PR" ||
                             ufOrigem == "SP" || ufOrigem == "RJ" || ufOrigem == "MG")
                         {
-                            aliquotaCredito = 7.0;
+                            aliquotaCredito = 0.07;
                         }
                         else
                         {
-                            aliquotaCredito = 12.0;
+                            aliquotaCredito = 0.12;
                         }
                     }
                     else
