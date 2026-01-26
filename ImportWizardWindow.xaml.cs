@@ -10,7 +10,6 @@ using System.Windows;
 using System.Windows.Controls;
 using CsvIntegratorApp.Models;
 using CsvIntegratorApp.Services;
-using CsvIntegratorApp.Services.Sped;
 using ClosedXML.Excel;
 
 namespace CsvIntegratorApp
@@ -60,6 +59,7 @@ namespace CsvIntegratorApp
                 return;
             }
 
+            _processedMdfeKeys.Clear();
             SetUiProcessingState(true);
 
             var progress = new Progress<ProgressReport>(report =>
@@ -250,7 +250,14 @@ namespace CsvIntegratorApp
                 var sfd = new SaveFileDialog { Filter = "Excel Workbook (*.xlsx)|*.xlsx", FileName = "demonstrativo.xlsx" };
                 if (sfd.ShowDialog() == true)
                 {
-                    using var workbook = new XLWorkbook("modelo_para_exportar.xlsx");
+                    var templatePath = ResolveTemplatePath();
+                    if (string.IsNullOrWhiteSpace(templatePath))
+                    {
+                        MessageBox.Show(this, "O arquivo modelo_para_exportar.xlsx não foi encontrado. Verifique se ele está ao lado do executável.", "Arquivo não encontrado", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    using var workbook = new XLWorkbook(templatePath);
 
                     PopulateDemonstrativoWorksheet(workbook.Worksheet("Demonstrativo"), _currentRows);
                     PopulateNotaAquisicaoWorksheet(workbook.Worksheet("Nota de Aquisição Combustível"), _currentRows);
@@ -269,8 +276,206 @@ namespace CsvIntegratorApp
             MessageBox.Show(this, "Esta funcionalidade está temporariamente desabilitada.", "Aviso");
         }
 
+        private static string? ResolveTemplatePath()
+        {
+            var baseDir = AppContext.BaseDirectory;
+            var candidates = new[]
+            {
+                Path.Combine(baseDir, "modelo_para_exportar.xlsx"),
+                Path.Combine(Directory.GetCurrentDirectory(), "modelo_para_exportar.xlsx")
+            };
+
+            foreach (var candidate in candidates)
+            {
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static void SetDateCell(IXLCell cell, DateTime? value)
+        {
+            if (value.HasValue)
+            {
+                cell.Value = value.Value;
+                cell.Style.NumberFormat.Format = "dd/MM/yyyy";
+            }
+            else
+            {
+                cell.Value = "";
+            }
+        }
+
         private void PopulateDemonstrativoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
         {
+            var headerMergedRanges = worksheet.MergedRanges
+                .Where(r => r.RangeAddress.FirstAddress.RowNumber <= 3 && r.RangeAddress.LastAddress.RowNumber <= 3)
+                .ToList();
+            foreach (var range in headerMergedRanges)
+            {
+                range.Unmerge();
+            }
+
+            foreach (var range in new[]
+            {
+                "A1:D1", "E1:J1", "K1:L1", "M1:N1", "T1:U1",
+                "A2:D2", "E2:H2", "I2:J2", "K2:L2", "M2:N2", "T2:U2"
+            })
+            {
+                worksheet.Range(range).Merge();
+            }
+
+            worksheet.Row(1).Height = 30.75;
+            worksheet.Row(2).Height = 12.75;
+            worksheet.Row(3).Height = 41.25;
+
+            worksheet.Column(1).Width = 8.75;
+            worksheet.Column(2).Width = 12.625;
+            worksheet.Column(3).Width = 9.0;
+            worksheet.Column(4).Width = 9.0;
+            worksheet.Column(5).Width = 10.0;
+            worksheet.Column(6).Width = 9.375;
+            worksheet.Column(7).Width = 16.25;
+            worksheet.Column(8).Width = 24.125;
+            worksheet.Column(9).Width = 7.125;
+            worksheet.Column(10).Width = 19.125;
+            worksheet.Column(11).Width = 9.875;
+            worksheet.Column(12).Width = 12.875;
+            worksheet.Column(13).Width = 13.875;
+            worksheet.Column(14).Width = 13.25;
+            worksheet.Column(15).Width = 21.625;
+            worksheet.Column(16).Width = 20.25;
+            worksheet.Column(17).Width = 25.25;
+            worksheet.Column(18).Width = 33.375;
+            worksheet.Column(19).Width = 31.25;
+            worksheet.Column(20).Width = 20.0;
+            worksheet.Column(21).Width = 13.75;
+
+            worksheet.Cell("A1").Value = "Art. 62-B \u00a7 3\u00ba I";
+            worksheet.Cell("E1").Value = "Art. 62-B \u00a7 3\u00ba II";
+            worksheet.Cell("K1").Value = "Art. 62-B \u00a7 3\u00ba IV";
+            worksheet.Cell("M1").Value = "Art. 62-B \u00a7 3\u00ba V";
+            worksheet.Cell("O1").Value = "Art. 62-B \u00a7 3\u00ba VI";
+            worksheet.Cell("P1").Value = "Art. 4\u00ba - Anexo VI";
+            worksheet.Cell("Q1").Value = "Valor do Cr\u00e9dito a Apropriar";
+            worksheet.Cell("R1").Value = "Mercadorias ST";
+            worksheet.Cell("S1").Value = "Valor do Cr\u00e9dito a Apropriar";
+            worksheet.Cell("T1").Value = "Art. 62-B \u00a7 3\u00ba VII";
+
+            worksheet.Cell("A2").Value = "Ve\u00edculo Utilizado";
+            worksheet.Cell("E2").Value = "Trajeto";
+            worksheet.Cell("I2").Value = "Carga";
+            worksheet.Cell("K2").Value = "Combust\u00edvel";
+            worksheet.Cell("M2").Value = "Valor do Combustivel";
+            worksheet.Cell("O2").Value = "Cr\u00e9dito integral - 100%";
+            worksheet.Cell("P2").Value = "Estorno de Cr\u00e9dito";
+            worksheet.Cell("Q2").Value = "= (Cr\u00e9dito Total - Estornos)";
+            worksheet.Cell("R2").Value = "Estorno de Cr\u00e9dito";
+            worksheet.Cell("S2").Value = "= (Cr\u00e9dito - Mercadoria ST)";
+            worksheet.Cell("T2").Value = "Nota de Aquisi\u00e7\u00e3o do Combust\u00edvel";
+
+            worksheet.Cell("A3").Value = "Modelo";
+            worksheet.Cell("B3").Value = "Tipo";
+            worksheet.Cell("C3").Value = "Renavam";
+            worksheet.Cell("D3").Value = "Placa";
+            worksheet.Cell("E3").Value = "MDF-e";
+            worksheet.Cell("F3").Value = "Data";
+            worksheet.Cell("G3").Value = "Itiner\u00e1rio (Origem/Destino)";
+            worksheet.Cell("H3").Value = "Dist\u00e2ncia Percorrida (KM)";
+            worksheet.Cell("I3").Value = "N\u00b0 NF-e";
+            worksheet.Cell("J3").Value = "Data de Emiss\u00e3o";
+            worksheet.Cell("K3").Value = "Quantidade Usada (LT)";
+            worksheet.Cell("L3").Value = "Esp\u00e9cie do Combustivel";
+            worksheet.Cell("M3").Value = "Valor unit\u00e1rio";
+            worksheet.Cell("N3").Value = "Valor Total do Combustivel";
+            worksheet.Cell("O3").Value = "Valor do Cr\u00e9dito Integral";
+            worksheet.Cell("P3").Value = "Opera\u00e7\u00f5es com isen\u00e7\u00e3o, imunidade ou redu\u00e7\u00e3o na base de c\u00e1lculo";
+            worksheet.Cell("Q3").Value = "Valor do Cr\u00e9dito";
+            worksheet.Cell("R3").Value = "Opera\u00e7\u00f5es com mercadoria sujeitas a Substitui\u00e7\u00e3o Tribut\u00e1ria";
+            worksheet.Cell("S3").Value = "Valor do Cr\u00e9dito Liquido";
+            worksheet.Cell("T3").Value = "N\u00b0 NF-e";
+            worksheet.Cell("U3").Value = "Data de Aquisi\u00e7\u00e3o";
+
+            var headerRange = worksheet.Range("A1:U3");
+            headerRange.Style.Font.FontName = "Cambria";
+            headerRange.Style.Font.FontSize = 10;
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Font.FontColor = XLColor.White;
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#002060");
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+            headerRange.Style.Alignment.WrapText = true;
+            headerRange.Style.Border.SetOutsideBorder(XLBorderStyleValues.Thin);
+            headerRange.Style.Border.SetInsideBorder(XLBorderStyleValues.Thin);
+
+            // Data
+            int currentRow = 4;
+            foreach (var row in rows)
+            {
+                worksheet.Cell(currentRow, 1).Value = row.Modelo;
+                worksheet.Cell(currentRow, 2).Value = row.Tipo;
+                worksheet.Cell(currentRow, 3).Value = row.Renavam;
+                worksheet.Cell(currentRow, 4).Value = row.Placa;
+                worksheet.Cell(currentRow, 5).Value = row.MdfeNumero;
+                SetDateCell(worksheet.Cell(currentRow, 6), row.Data);
+                worksheet.Cell(currentRow, 7).Value = row.Roteiro;
+                worksheet.Cell(currentRow, 8).Value = row.DistanciaPercorridaKm;
+                worksheet.Cell(currentRow, 8).Style.NumberFormat.Format = "0";
+                worksheet.Cell(currentRow, 9).Value = row.NFeCargaNumero;
+                SetDateCell(worksheet.Cell(currentRow, 10), row.DataEmissaoCarga);
+                worksheet.Cell(currentRow, 11).Value = row.QuantidadeUsadaLitros;
+                worksheet.Cell(currentRow, 11).Style.NumberFormat.Format = "0.0000";
+                worksheet.Cell(currentRow, 12).Value = row.EspecieCombustivel;
+                worksheet.Cell(currentRow, 13).Value = row.ValorUnitario;
+                worksheet.Cell(currentRow, 13).Style.NumberFormat.Format = "0.0000";
+                worksheet.Cell(currentRow, 14).Value = row.ValorTotalCombustivel;
+                worksheet.Cell(currentRow, 14).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 15).Value = row.ValorCredito;
+                worksheet.Cell(currentRow, 15).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 16).Value = row.ValorEstornoCredito;
+                worksheet.Cell(currentRow, 16).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 17).Value = row.ValorCreditoLiquido;
+                worksheet.Cell(currentRow, 17).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 18).Value = row.ValorEstornoCreditoSt;
+                worksheet.Cell(currentRow, 18).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 19).Value = row.ValorCreditoLiquidoSt;
+                worksheet.Cell(currentRow, 19).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 20).Value = row.NFeAquisicaoNumero;
+                SetDateCell(worksheet.Cell(currentRow, 21), row.DataAquisicao);
+                currentRow++;
+            }
+
+            if (rows.Any())
+            {
+                var range = worksheet.Range(4, 1, currentRow - 1, 21);
+                range.Style.Border.SetOutsideBorder(XLBorderStyleValues.Thin);
+                range.Style.Border.SetInsideBorder(XLBorderStyleValues.Thin);
+            }
+        }
+
+        private void PopulateDemonstrativoWorksheetLegacy(IXLWorksheet worksheet, List<ModelRow> rows)
+        {
+            var mergedRanges = worksheet.MergedRanges.ToList();
+            foreach (var range in new[] { "P1:Q1", "P2:Q2" })
+            {
+                if (mergedRanges.Any(r => r.RangeAddress.ToString() == range))
+                {
+                    worksheet.Range(range).Unmerge();
+                }
+            }
+
+            if (!mergedRanges.Any(r => r.RangeAddress.ToString() == "R1:S1"))
+            {
+                worksheet.Range("R1:S1").Merge();
+            }
+
+            if (!mergedRanges.Any(r => r.RangeAddress.ToString() == "R2:S2"))
+            {
+                worksheet.Range("R2:S2").Merge();
+            }
             // Headers - Row 1
             worksheet.Cell("A1").Value = "Art. 62-B § 3º I";
             worksheet.Cell("E1").Value = "Art. 62-B § 3º II";
@@ -307,6 +512,29 @@ namespace CsvIntegratorApp
             worksheet.Cell("P3").Value = "N° NF-e";
             worksheet.Cell("Q3").Value = "Data de Aquisição";
 
+            // Ajuste de cabecalhos para credito com estorno (layout atualizado)
+            worksheet.Cell("O1").Value = "Art. 62-B \u00a7 3\u00ba VI";
+            worksheet.Cell("P1").Value = "Art. 4\u00ba - Anexo VI";
+            worksheet.Cell("Q1").Value = "Valor do Cr\u00e9dito a Apropriar";
+            worksheet.Cell("R1").Value = "Art. 62-B \u00a7 3\u00ba VII";
+
+            worksheet.Cell("O2").Value = "Cr\u00e9dito integral - 100%";
+            worksheet.Cell("P2").Value = "Estorno de Cr\u00e9dito";
+            worksheet.Cell("Q2").Value = "= (Cr\u00e9dito Total - Estornos)";
+            worksheet.Cell("R2").Value = "Nota de Aquisi\u00e7\u00e3o do Combust\u00edvel";
+
+            worksheet.Cell("O3").Value = "Valor do Cr\u00e9dito Integral";
+            worksheet.Cell("P3").Value = "Opera\u00e7\u00f5es com isen\u00e7\u00e3o, imunidade ou redu\u00e7\u00e3o na base de c\u00e1lculo";
+            worksheet.Cell("Q3").Value = "Valor do Cr\u00e9dito Liquido";
+            worksheet.Cell("R3").Value = "N\u00ba NF-e";
+            worksheet.Cell("S3").Value = "Data de Aquisi\u00e7\u00e3o";
+
+            var headerRange = worksheet.Range("A1:S3");
+            headerRange.Style.Font.FontColor = XLColor.White;
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F4E78");
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+
             // Data
             int currentRow = 4;
             foreach (var row in rows)
@@ -333,15 +561,19 @@ namespace CsvIntegratorApp
                 worksheet.Cell(currentRow, 14).Style.NumberFormat.Format = "0.00";
                 worksheet.Cell(currentRow, 15).Value = row.ValorCredito;
                 worksheet.Cell(currentRow, 15).Style.NumberFormat.Format = "0.00";
-                worksheet.Cell(currentRow, 16).Value = row.NFeAquisicaoNumero;
-                worksheet.Cell(currentRow, 17).Value = row.DataAquisicao;
-                worksheet.Cell(currentRow, 17).Style.NumberFormat.Format = "dd/MM/yyyy";
+                worksheet.Cell(currentRow, 16).Value = row.ValorEstornoCredito;
+                worksheet.Cell(currentRow, 16).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 17).Value = row.ValorCreditoLiquido;
+                worksheet.Cell(currentRow, 17).Style.NumberFormat.Format = "0.00";
+                worksheet.Cell(currentRow, 18).Value = row.NFeAquisicaoNumero;
+                worksheet.Cell(currentRow, 19).Value = row.DataAquisicao;
+                worksheet.Cell(currentRow, 19).Style.NumberFormat.Format = "dd/MM/yyyy";
                 currentRow++;
             }
 
             if (rows.Any())
             {
-                var range = worksheet.Range(4, 1, currentRow - 1, 17);
+                var range = worksheet.Range(4, 1, currentRow - 1, 19);
                 range.Style.Border.SetOutsideBorder(XLBorderStyleValues.Thin);
                 range.Style.Border.SetInsideBorder(XLBorderStyleValues.Thin);
             }
@@ -359,7 +591,7 @@ namespace CsvIntegratorApp
 
                     return new ModelRow
                     {
-                        DataEmissao = i.DataEmissao?.ToString("dd/MM/yyyy"),
+                        DataEmissao = i.DataEmissao?.Date,
                         NFeNumero = i.NumeroNFe,
                         FornecedorCnpj = i.EmitCNPJ,
                         FornecedorNome = i.EmitNome,
@@ -374,7 +606,7 @@ namespace CsvIntegratorApp
                         ChaveNFe = i.ChaveNFe
                     };
                 })
-                .OrderBy(r => r.DataEmissao ?? DateTime.MinValue.ToString("dd/MM/yyyy"))
+                .OrderBy(r => r.DataEmissao ?? DateTime.MinValue)
                 .ToList();
 
 
@@ -419,10 +651,8 @@ namespace CsvIntegratorApp
                     dataEntrada = dtEnt;
                 }
 
-                worksheet.Cell(currentRow, 1).Value = row.DataEmissao;
-                worksheet.Cell(currentRow, 1).Style.NumberFormat.Format = "dd/MM/yyyy";
-                worksheet.Cell(currentRow, 2).Value = dataEntrada; // Usa a data de entrada do C100
-                worksheet.Cell(currentRow, 2).Style.NumberFormat.Format = "dd/MM/yyyy";
+                SetDateCell(worksheet.Cell(currentRow, 1), row.DataEmissao);
+                SetDateCell(worksheet.Cell(currentRow, 2), dataEntrada); // Usa a data de entrada do C100
                 worksheet.Cell(currentRow, 3).Value = row.NFeNumero;
                 worksheet.Cell(currentRow, 4).Value = row.FornecedorCnpj;
                 worksheet.Cell(currentRow, 5).Value = row.FornecedorNome;

@@ -106,9 +106,25 @@ namespace CsvIntegratorApp.Services
             SpedTxtLookupService.TryGetC170InfoPorChave(chave, out var c170Data);
 
             var list = new List<NfeParsedItem>();
+            var usedItemNumbers = new HashSet<int>();
+            var fallbackItem = 1;
             foreach (var det in doc.Descendants(ns + "det"))
             {
-                int? nItem = TryInt(det.Attribute("nItem")?.Value);
+                // nItem pode vir como atributo (padrão) ou como elemento (alguns emissores)
+                int? nItem = TryInt(det.Attribute("nItem")?.Value)
+                    ?? TryInt(det.Element(ns + "nItem")?.Value);
+                if (nItem.HasValue)
+                {
+                    usedItemNumbers.Add(nItem.Value);
+                }
+                else
+                {
+                    while (usedItemNumbers.Contains(fallbackItem)) fallbackItem++;
+                    nItem = fallbackItem;
+                    usedItemNumbers.Add(fallbackItem);
+                    fallbackItem++;
+                    Debug.WriteLine($"[ParserNFe] NFe: {chave}, nItem ausente; atribuído sequencial {nItem}.");
+                }
                 var prod = det.Element(ns + "prod");
 
                 string? cProd = prod?.Element(ns + "cProd")?.Value;

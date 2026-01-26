@@ -17,8 +17,6 @@
 	  </Content>
 	</ItemGroup>
 	<ItemGroup>
-	  <Content Include="ors_api_key.txt">
-	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-	  </Content>
+	  <Compile Remove="Tools\SmokeRunner\**\*.cs" />
 	</ItemGroup>
 </Project>

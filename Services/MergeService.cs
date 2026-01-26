@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using CsvIntegratorApp.Models;
 using CsvIntegratorApp;
@@ -104,6 +103,24 @@ namespace CsvIntegratorApp.Services
                 var nfeKeysSaida = nfeKeysAll
                     .Where(k => SpedTxtLookupService.IsSaidaNFe(k))
                     .ToList();
+
+                var nfeKeysSemSped = nfeKeysAll
+                    .Except(nfeKeysSaida, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (nfeKeysSemSped.Count > 0)
+                {
+                    CalculationLogService.Log(
+                        $"MDF-e {mdfe.Header.Serie}/{mdfe.Header.NumeroMdf}: NF-e sem C100 de saida no SPED ({nfeKeysSemSped.Count}): {string.Join(", ", nfeKeysSemSped)}");
+                }
+
+                var (sumIsentas, sumSt, totalNfe, c190IsentasCount, c190StCount, c100Count) = GetC190BasesForKeys(nfeKeysSaida);
+                double? proporcaoIsentas = null;
+                double? proporcaoSt = null;
+                if (totalNfe > 0m)
+                {
+                    proporcaoIsentas = (double)(sumIsentas / totalNfe);
+                    proporcaoSt = (double)(sumSt / totalNfe);
+                }
 
                 // se não sobrou nada → MDF-e só com nota de ENTRADA → ignora
                 if (nfeKeysSaida.Count == 0)
@@ -210,7 +227,7 @@ namespace CsvIntegratorApp.Services
                     row.AliquotaCredito = aliquotaCredito;
 
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
-                    row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
+                    row.DataAquisicao = dataAquisicaoMax?.Date;
                     row.NFeCargaNumero = string.Join(", ", nfeKeysSaida.Select(key =>
                     {
                         if (key.Length >= 34 && long.TryParse(key.Substring(25, 9), out long nfeNum))
@@ -218,8 +235,20 @@ namespace CsvIntegratorApp.Services
                         return key;
                     }).Where(s => !string.IsNullOrWhiteSpace(s)));
                     row.NFeNumero = nfeNumeroCarga;
-                    row.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
+                    row.DataEmissaoCarga = cargoMostRecent?.Date;
                     row.Vinculo = "Sim";
+
+                    ApplyCreditoEstorno(
+                        row,
+                        proporcaoIsentas,
+                        proporcaoSt,
+                        sumIsentas,
+                        sumSt,
+                        totalNfe,
+                        c190IsentasCount,
+                        c190StCount,
+                        c100Count,
+                        h);
 
                     var outKey = BuildMdfeOutputKey(h);
                     if (mdfeOutputKeys.Add(outKey))
@@ -268,7 +297,19 @@ namespace CsvIntegratorApp.Services
                         return key;
                     }).Where(s => !string.IsNullOrWhiteSpace(s)));
 
-                    modelRow.DataEmissaoCarga = cargoMostRecent?.ToString("dd/MM/yyyy");
+                    modelRow.DataEmissaoCarga = cargoMostRecent?.Date;
+
+                    ApplyCreditoEstorno(
+                        modelRow,
+                        proporcaoIsentas,
+                        proporcaoSt,
+                        sumIsentas,
+                        sumSt,
+                        totalNfe,
+                        c190IsentasCount,
+                        c190StCount,
+                        c100Count,
+                        h);
 
                     var outKey = BuildMdfeOutputKey(h);
                     if (mdfeOutputKeys.Add(outKey))
@@ -288,21 +329,8 @@ namespace CsvIntegratorApp.Services
             }
 
 
-            // Adiciona NF-e de diesel não alocadas (vamos usar no futuro para gerar uma nova planilha de controle)
-            foreach (var item in dieselItems)
-            {
-                CalculationLogService.Log(
-                    $"NF-e {item.NumeroNFe} ignorada no demonstrativo: combustível não alocado a MDF-e.");
-
-                //var original = item.Quantidade ?? 0.0;
-                //var rem = allocator.RemainingForItem(item.ChaveNFe, item.NumeroItem);
-                //if (original > 0 && Math.Abs(rem - original) < 1e-6)
-                //{
-                //    var nfeRow = BaseFromNfe(item);
-                //    nfeRow.Vinculo = "Não";
-                //    allModelRows.Add(nfeRow);
-                //}
-            }
+            var dieselAllocationReport = BuildDieselAllocationReport(dieselItems, allocator);
+            LogDieselAllocationReport(dieselAllocationReport);
 
             CalculationLogService.Log("Processo finalizado.");
             CalculationLogService.Save();
@@ -317,7 +345,7 @@ namespace CsvIntegratorApp.Services
 
             var allocator = new FuelAllocator(dieselItems);
 
-            foreach (var row in rows.OrderBy(r => r.Data))
+            foreach (var row in rows.OrderBy(r => r.Data ?? DateTime.MinValue))
             {
                 if (string.IsNullOrEmpty(row.MdfeNumero)) continue;
 
@@ -349,8 +377,9 @@ namespace CsvIntegratorApp.Services
                     row.ValorUnitario = valorUnitMedio;
                     row.ValorCredito = Math.Round(creditoTotal, 2);
                     row.NFeAquisicaoNumero = numerosNfeAquisicao;
-                    row.DataAquisicao = dataAquisicaoMax?.ToString("dd/MM/yyyy");
+                    row.DataAquisicao = dataAquisicaoMax?.Date;
                     row.Vinculo = "Sim";
+                    ApplyCreditoEstornoFromPercent(row);
                 }
                 else
                 {
@@ -363,6 +392,7 @@ namespace CsvIntegratorApp.Services
                     row.NFeAquisicaoNumero = null;
                     row.DataAquisicao = null;
                     row.Vinculo = "Não";
+                    ApplyCreditoEstornoFromPercent(row);
                 }
             }
         }
@@ -379,33 +409,9 @@ namespace CsvIntegratorApp.Services
                 Renavam = h.Renavam,
                 Placa = h.Placa,
                 MdfeNumero = h.NumeroMdf,
-                Data = h.DhIniViagem?.ToString("dd/MM/yyyy") ?? h.DhEmi?.ToString("dd/MM/yyyy"),
+                Data = h.DhIniViagem?.Date ?? h.DhEmi?.Date,
                 UFEmit = h.EmitUF,
                 CidadeEmit = ToTitle(h.EmitCidade),
-                Vinculo = "Não"
-            };
-        }
-
-        private static ModelRow BaseFromNfe(NfeParsedItem n)
-        {
-            return new ModelRow
-            {
-                NFeNumero = n.NumeroNFe,
-                DataEmissao = n.DataEmissao?.ToString("dd/MM/yyyy"),
-                QuantidadeLitros = n.Quantidade,
-                EspecieCombustivel = n.DescricaoProduto ?? "OLEO DIESEL",
-                ValorUnitario = n.ValorUnitario,
-                ValorTotalCombustivel = n.ValorTotal,
-                AliquotaCredito = n.Aliquota,
-                ValorCredito = n.Credito,
-                UFEmit = n.UFEmit,
-                UFDest = n.UFDest,
-                CidadeEmit = ToTitle(n.CidadeEmit),
-                CidadeDest = ToTitle(n.CidadeDest),
-                FornecedorCnpj = n.EmitCNPJ,
-                FornecedorNome = n.EmitNome,
-                FornecedorEndereco = $"{n.EmitStreet}, {n.EmitNumber} - {n.EmitNeighborhood}, {n.CidadeEmit} - {n.UFEmit}",
-                Placa = n.PlacaObservada,
                 Vinculo = "Não"
             };
         }
@@ -448,5 +454,179 @@ namespace CsvIntegratorApp.Services
 
         private static string BuildMdfeOutputKey(MdfeHeader h)
             => $"{h.EmitCnpj}|{h.Serie}|{h.NumeroMdf}|{h.Placa}";
+
+        private static (decimal sumIsentas, decimal sumSt, decimal totalNfe, int c190IsentasCount, int c190StCount, int c100Count) GetC190BasesForKeys(IEnumerable<string> keys)
+        {
+            decimal sumIsentas = 0m;
+            decimal sumSt = 0m;
+            decimal totalNfe = 0m;
+            int c190IsentasCount = 0;
+            int c190StCount = 0;
+            int c100Count = 0;
+
+            foreach (var key in keys ?? Array.Empty<string>())
+            {
+                if (SpedTxtLookupService.TryGetC190InfoPorChave(key, out var c190Info) && c190Info != null)
+                {
+                    foreach (var c190 in c190Info)
+                    {
+                        var cst = NormalizeCst(c190.cst);
+                        if (cst == "40" || cst == "41" || cst == "20")
+                        {
+                            if (c190.totalDocumento.HasValue)
+                            {
+                                sumIsentas += c190.totalDocumento.Value;
+                                c190IsentasCount++;
+                            }
+                        }
+                        else if (cst == "10" || cst == "60" || cst == "61")
+                        {
+                            if (c190.totalDocumento.HasValue)
+                            {
+                                sumSt += c190.totalDocumento.Value;
+                                c190StCount++;
+                            }
+                        }
+                    }
+                }
+
+                if (SpedTxtLookupService.TryGetC100ValorDocumentoPorChave(key, out var valorDocumento) &&
+                    valorDocumento.HasValue)
+                {
+                    totalNfe += valorDocumento.Value;
+                    c100Count++;
+                }
+            }
+
+            return (sumIsentas, sumSt, totalNfe, c190IsentasCount, c190StCount, c100Count);
+        }
+
+        private static void ApplyCreditoEstorno(
+            ModelRow row,
+            double? proporcaoIsentas,
+            double? proporcaoSt,
+            decimal sumIsentas,
+            decimal sumSt,
+            decimal totalNfe,
+            int c190IsentasCount,
+            int c190StCount,
+            int c100Count,
+            MdfeHeader h)
+        {
+            if (!row.ValorCredito.HasValue || !proporcaoIsentas.HasValue || !proporcaoSt.HasValue)
+            {
+                row.ValorEstornoCredito = null;
+                row.ValorCreditoLiquido = null;
+                row.ValorEstornoCreditoSt = null;
+                row.ValorCreditoLiquidoSt = null;
+
+                if (row.ValorCredito.HasValue)
+                {
+                    CalculationLogService.Log(
+                        $"MDF-e {h.Serie}/{h.NumeroMdf}: base insuficiente para estorno (C190_isentas={c190IsentasCount}, C190_ST={c190StCount}, C100={c100Count}, SomaIsentas={sumIsentas:F2}, SomaST={sumSt:F2}, TotalNFe={totalNfe:F2}).");
+                }
+                return;
+            }
+
+            var propIsentas = Math.Round(Math.Clamp(proporcaoIsentas.Value, 0.0, 1.0), 4);
+            var propSt = Math.Round(Math.Clamp(proporcaoSt.Value, 0.0, 1.0), 4);
+            row.PercentualCredito = propIsentas;
+            row.PercentualCreditoSt = propSt;
+            var creditoIntegral = row.ValorCredito.Value;
+
+            var estornoIsentas = Math.Round(creditoIntegral * propIsentas, 2);
+            var estornoSt = Math.Round(creditoIntegral * propSt, 2);
+            var creditoLiquido = Math.Round(creditoIntegral - estornoIsentas, 2);
+            var creditoLiquidoSt = Math.Round(creditoIntegral - estornoIsentas - estornoSt, 2);
+
+            row.ValorEstornoCredito = estornoIsentas;
+            row.ValorCreditoLiquido = creditoLiquido;
+            row.ValorEstornoCreditoSt = estornoSt;
+            row.ValorCreditoLiquidoSt = creditoLiquidoSt;
+
+            CalculationLogService.Log(
+                $"MDF-e {h.Serie}/{h.NumeroMdf}: SomaIsentas={sumIsentas:F2}, SomaST={sumSt:F2}, TotalNFe={totalNfe:F2}, ProporcaoIsentas={propIsentas:P2}, ProporcaoST={propSt:P2}, CreditoIntegral={creditoIntegral:F2}, EstornoIsentas={estornoIsentas:F2}, EstornoST={estornoSt:F2}, CreditoLiquido={creditoLiquidoSt:F2}.");
+        }
+
+        private static void ApplyCreditoEstornoFromPercent(ModelRow row)
+        {
+            if (!row.ValorCredito.HasValue ||
+                !row.PercentualCredito.HasValue ||
+                !row.PercentualCreditoSt.HasValue)
+            {
+                row.ValorEstornoCredito = null;
+                row.ValorCreditoLiquido = null;
+                row.ValorEstornoCreditoSt = null;
+                row.ValorCreditoLiquidoSt = null;
+                return;
+            }
+
+            var propIsentas = Math.Round(Math.Clamp(row.PercentualCredito.Value, 0.0, 1.0), 4);
+            var propSt = Math.Round(Math.Clamp(row.PercentualCreditoSt.Value, 0.0, 1.0), 4);
+            var creditoIntegral = row.ValorCredito.Value;
+
+            row.ValorEstornoCredito = Math.Round(creditoIntegral * propIsentas, 2);
+            row.ValorEstornoCreditoSt = Math.Round(creditoIntegral * propSt, 2);
+            row.ValorCreditoLiquido = Math.Round(creditoIntegral - row.ValorEstornoCredito.Value, 2);
+            row.ValorCreditoLiquidoSt = Math.Round(creditoIntegral - row.ValorEstornoCredito.Value - row.ValorEstornoCreditoSt.Value, 2);
+        }
+
+        private sealed record DieselAllocationInfo(
+            string? ChaveNFe,
+            string? NumeroNFe,
+            DateTime? DataEmissao,
+            double LitrosTotal,
+            double LitrosAlocados,
+            double LitrosRestantes);
+
+        private static List<DieselAllocationInfo> BuildDieselAllocationReport(List<NfeParsedItem> dieselItems, FuelAllocator allocator)
+        {
+            return (dieselItems ?? new List<NfeParsedItem>())
+                .Where(FuelAllocator.IsDieselItem)
+                .GroupBy(i => i.ChaveNFe ?? "", StringComparer.OrdinalIgnoreCase)
+                .Select(g =>
+                {
+                    var litrosTotal = g.Sum(i => i.Quantidade ?? 0.0);
+                    var litrosRestantes = g.Sum(i => allocator.RemainingForItem(i.ChaveNFe, i.NumeroItem));
+                    var litrosAlocados = litrosTotal - litrosRestantes;
+                    var head = g.OrderByDescending(i => i.DataEmissao ?? DateTime.MinValue).FirstOrDefault();
+
+                    return new DieselAllocationInfo(
+                        ChaveNFe: head?.ChaveNFe ?? g.Key,
+                        NumeroNFe: head?.NumeroNFe,
+                        DataEmissao: head?.DataEmissao,
+                        LitrosTotal: Math.Round(litrosTotal, 6),
+                        LitrosAlocados: Math.Round(litrosAlocados, 6),
+                        LitrosRestantes: Math.Round(litrosRestantes, 6));
+                })
+                .OrderBy(d => d.DataEmissao ?? DateTime.MinValue)
+                .ToList();
+        }
+
+        private static void LogDieselAllocationReport(List<DieselAllocationInfo> entries)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                CalculationLogService.Log("Relatorio de alocacao de diesel: sem entradas.");
+                return;
+            }
+
+            var pt = CultureInfo.GetCultureInfo("pt-BR");
+            CalculationLogService.Log("Relatorio de alocacao de diesel:");
+            foreach (var e in entries)
+            {
+                var status = e.LitrosAlocados > 0 ? "Usada" : "Nao Usada";
+                var data = e.DataEmissao?.ToString("dd/MM/yyyy") ?? "";
+                CalculationLogService.Log(
+                    $"NF-e {e.NumeroNFe} ({e.ChaveNFe}): Data={data}, Total={e.LitrosTotal.ToString("N6", pt)}L, Alocado={e.LitrosAlocados.ToString("N6", pt)}L, Restante={e.LitrosRestantes.ToString("N6", pt)}L, Status={status}.");
+            }
+        }
+
+        private static string NormalizeCst(string? cst)
+        {
+            if (string.IsNullOrWhiteSpace(cst)) return "";
+            var trimmed = cst.Trim().TrimStart('0');
+            return string.IsNullOrEmpty(trimmed) ? "0" : trimmed;
+        }
     }
 }

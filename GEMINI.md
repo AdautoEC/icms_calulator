@@ -208,7 +208,6 @@ C:\Users\User\Documents\icms\
 ├───Modelo.xlsx
 ├───Modelo.xlsx - Nota de Aquisição Combustível.csv
 ├───NFe Combustivel 5020 0805 0801 1700 0146 5500 1000 0770 0010 0004 0417.xml
-├───ors_api_key.txt
 ├───prompt_layout.txt
 ├───prompt_modelo_planilha.txt
 ├───README.md
@@ -325,7 +324,7 @@ O sistema de geocodificação e cálculo de rotas foi significativamente refator
 ### 14.1) Migração para OpenRouteService (ORS)
 O provedor de dados geográficos foi migrado da combinação pública de Nominatim/OSRM para o **OpenRouteService (ORS)**. Isso oferece um serviço mais estável e integrado.
 
-- **Autenticação**: A comunicação com o ORS exige uma **chave de API**. O sistema foi configurado para ler esta chave do arquivo `ors_api_key.txt`, localizado na raiz do projeto.
+- **Autenticação**: A comunicação com o ORS exige uma **chave de API**. O sistema lê `ORS_API_KEY` do ambiente ou o arquivo `ors_api_key.txt` em `%LOCALAPPDATA%\CsvIntegratorApp` ou ao lado do executável.
 
 ### 14.2) Cliente de API Desacoplado
 Para seguir o princípio de responsabilidade única, foi criado um novo serviço, `Services/ApiClients/OpenRouteServiceClient.cs`. 

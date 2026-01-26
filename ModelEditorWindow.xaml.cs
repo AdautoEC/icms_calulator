@@ -117,7 +117,7 @@ namespace CsvIntegratorApp
                     textColumn.Binding.StringFormat = "{0:F0}";
                 }
                 // Datas: remover horas
-                else if (e.PropertyName == "Data" || e.PropertyName == "DataEmissao" || e.PropertyName == "DataAquisicao")
+                else if (e.PropertyName == "Data" || e.PropertyName == "DataEmissao" || e.PropertyName == "DataEmissaoCarga" || e.PropertyName == "DataAquisicao")
                 {
                     textColumn.Binding.StringFormat = "{0:d}";
                 }

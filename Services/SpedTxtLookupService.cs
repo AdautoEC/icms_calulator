@@ -21,6 +21,9 @@ namespace CsvIntegratorApp.Services
         // chNFe -> Data Entrada/Saída (DT_E_S)
         private static readonly Dictionary<string, DateTime?> _mapChaveParaDataEntrada = new(StringComparer.OrdinalIgnoreCase);
 
+        // chNFe -> Valor total do documento (C100)
+        private static readonly Dictionary<string, decimal?> _mapChaveParaValorDocumento = new(StringComparer.OrdinalIgnoreCase);
+
         // chNFe -> C190 data
         private static readonly Dictionary<string, List<(string? cst, string? cfop, decimal? valorIcms, decimal? baseIcms, decimal? totalDocumento)>> _mapChaveParaC190 = new(StringComparer.OrdinalIgnoreCase);
 
@@ -36,6 +39,7 @@ namespace CsvIntegratorApp.Services
             _mapPartes.Clear();
             _mapChaveParaDataEmissao.Clear();  // <-- faltava limpar
             _mapChaveParaDataEntrada.Clear();
+            _mapChaveParaValorDocumento.Clear();
             _mapChaveParaC190.Clear();
             _mapChaveParaC170.Clear();
             _loaded = false;
@@ -72,6 +76,7 @@ namespace CsvIntegratorApp.Services
                         string? codPart = cols.Length > 4 ? cols[4] : null;
                         string? dtDocStr = cols.Length > 10 ? cols[10] : null; // DT_DOC
                         string? dtEntradaStr = cols.Length > 11 ? cols[11] : null; // DT_E_S
+                        string? vlDocStr = cols.Length > 12 ? cols[12] : null; // VL_DOC
 
                         // procura a chave NF-e (44 dígitos)
                         string? ch = cols.FirstOrDefault(c =>
@@ -109,6 +114,14 @@ namespace CsvIntegratorApp.Services
                                 {
                                     _mapChaveParaDataEmissao[lastChNFe] = dtDoc;
                                 }
+                            }
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(vlDocStr))
+                        {
+                            if (TryParseDecimal(vlDocStr, out var vlDoc))
+                            {
+                                _mapChaveParaValorDocumento[lastChNFe] = vlDoc;
                             }
                         }
 
@@ -155,9 +168,9 @@ namespace CsvIntegratorApp.Services
                             // |C190|CST|CFOP|ALIQ_ICMS|VL_OPR|VL_BC_ICMS|VL_ICMS|...
                             string? cst = cols.Length > 2 ? cols[2] : null;
                             string? cfop = cols.Length > 3 ? cols[3] : null;
-                            decimal? totalDocumento = cols.Length > 5 && decimal.TryParse(cols[5], out var val) ? val : null;
-                            decimal? baseIcms = cols.Length > 6 && decimal.TryParse(cols[6], out var val2) ? val2 : null;
-                            decimal? valorIcms = cols.Length > 7 && decimal.TryParse(cols[7], out var val3) ? val3 : null;
+                            decimal? totalDocumento = cols.Length > 5 && TryParseDecimal(cols[5], out var val) ? val : null;
+                            decimal? baseIcms = cols.Length > 6 && TryParseDecimal(cols[6], out var val2) ? val2 : null;
+                            decimal? valorIcms = cols.Length > 7 && TryParseDecimal(cols[7], out var val3) ? val3 : null;
 
                             if (!_mapChaveParaC190.ContainsKey(lastChNFe))
                             {
@@ -278,6 +291,15 @@ namespace CsvIntegratorApp.Services
             return _mapChaveParaDataEntrada.TryGetValue(ch, out dataEntrada);
         }
 
+        public static bool TryGetC100ValorDocumentoPorChave(string? chNFe, out decimal? valorDocumento)
+        {
+            valorDocumento = null;
+            if (!_loaded || string.IsNullOrWhiteSpace(chNFe)) return false;
+
+            var ch = Clean(chNFe);
+            return _mapChaveParaValorDocumento.TryGetValue(ch, out valorDocumento);
+        }
+
         // mapeia os dois primeiros dígitos do COD_MUN (IBGE) para UF
         private static string? UfFromCodMun(int? codMun)
         {
@@ -315,6 +337,12 @@ namespace CsvIntegratorApp.Services
                 53 => "DF",
                 _ => null
             };
+        }
+
+        private static bool TryParseDecimal(string value, out decimal result)
+        {
+            var normalized = value.Replace(",", ".");
+            return decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
         }
     }
 }

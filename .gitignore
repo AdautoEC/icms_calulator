@@ -8,6 +8,8 @@ obj/
 artifacts/
 publish/
 *.Publish.xml
+output_intaller/
+output_installer/
 
 # Visual Studio
 .vs/
@@ -45,6 +47,7 @@ Thumbs.db
 # Segredos / certificados / configs locais
 appsettings.*.local.json
 *.secrets.json
+ors_api_key.txt
 secrets/
 *.pfx
 *.key

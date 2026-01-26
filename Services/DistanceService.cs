@@ -28,20 +28,34 @@ namespace CsvIntegratorApp.Services
         private static string? GetApiKey()
         {
             if (_apiKeyCache != null) return _apiKeyCache;
-            
-            var keyFilePath = "ors_api_key.txt";
-            if (File.Exists(keyFilePath))
+
+            var envKey = Environment.GetEnvironmentVariable("ORS_API_KEY");
+            if (!string.IsNullOrWhiteSpace(envKey))
             {
-                _apiKeyCache = File.ReadAllText(keyFilePath).Trim();
-                if (!string.IsNullOrEmpty(_apiKeyCache))
+                _apiKeyCache = envKey.Trim();
+                return _apiKeyCache;
+            }
+
+            var appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CsvIntegratorApp");
+            var candidates = new[]
+            {
+                Path.Combine(appDir, "ors_api_key.txt"),
+                Path.Combine(AppContext.BaseDirectory, "ors_api_key.txt"),
+                Path.Combine(Directory.GetCurrentDirectory(), "ors_api_key.txt")
+            };
+
+            foreach (var path in candidates)
+            {
+                if (!File.Exists(path)) continue;
+                var key = File.ReadAllText(path).Trim();
+                if (!string.IsNullOrEmpty(key))
                 {
+                    _apiKeyCache = key;
                     return _apiKeyCache;
                 }
             }
-            
-            // Fallback for existing hardcoded key to avoid breaking change
-            _apiKeyCache = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA1Y2ZmNTZkOThjNzQ4ZDg5ZGNmNWNmMzhmOTBiNjQzIiwiaCI6Im11cm11cjY0In0=";
-            return _apiKeyCache;
+
+            return null;
         }
 
         private static OpenRouteServiceClient? GetClient()
@@ -72,7 +86,10 @@ namespace CsvIntegratorApp.Services
             var client = GetClient();
             if (client == null)
             {
-                return new RouteResult { Error = "Chave da API não configurada. Adicione a chave ao arquivo 'ors_api_key.txt'." };
+                return new RouteResult
+                {
+                    Error = "Chave da API não configurada. Defina ORS_API_KEY ou crie o arquivo 'ors_api_key.txt' em %LOCALAPPDATA%\\CsvIntegratorApp ou ao lado do executável."
+                };
             }
 
             if (waypoints.Count < 2) return new RouteResult { Error = "Pontos insuficientes" };

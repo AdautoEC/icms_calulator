@@ -132,7 +132,7 @@
                             <DataGridTextColumn Header="N° NF-e Carga" Binding="{Binding NFeCargaNumero, UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding NFeCargaNumero_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
-                            <DataGridTextColumn Header="Emissão Carga" Binding="{Binding DataEmissaoCarga, UpdateSourceTrigger=PropertyChanged}">
+                            <DataGridTextColumn Header="Emissão Carga" Binding="{Binding DataEmissaoCarga, StringFormat='d', UpdateSourceTrigger=PropertyChanged}">
                                 <DataGridTextColumn.CellStyle><Style TargetType="DataGridCell"><Style.Triggers><DataTrigger Binding="{Binding DataEmissaoCarga_IsEdited}" Value="True"><Setter Property="Foreground" Value="#005A9E"/><Setter Property="FontWeight" Value="Bold"/></DataTrigger></Style.Triggers></Style></DataGridTextColumn.CellStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Qtd Total NFe" Binding="{Binding QuantidadeLitros, StringFormat='N4', UpdateSourceTrigger=PropertyChanged}">

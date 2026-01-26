@@ -1,6 +1,6 @@
 # App Integrador CSV — Windows (.NET)
 
-Aplicativo desktop para **importar 2× XML + 1× TXT**, **cruzar os dados**, calcular **distâncias (Haversine)** e **gerar um CSV consolidado** para uso do time de negócios.
+Aplicativo desktop para **importar 2× XML + 1× TXT**, **cruzar os dados**, calcular **distâncias (rota viária com fallback Haversine)** e **gerar uma planilha Excel (XLSX) consolidada** para uso do time de negócios.
 
 ---
 
@@ -13,7 +13,7 @@ Aplicativo desktop para **importar 2× XML + 1× TXT**, **cruzar os dados**, cal
 - [Como executar](#como-executar)
 - [Configuração](#configuração)
 - [Uso](#uso)
-- [Especificação do CSV de saída](#especificação-do-csv-de-saída)
+- [Especificação da planilha de saída](#especificação-da-planilha-de-saída)
 - [Qualidade e testes](#qualidade-e-testes)
 - [Roadmap (opcional)](#roadmap-opcional)
 - [Suporte e contato](#suporte-e-contato)
@@ -22,10 +22,10 @@ Aplicativo desktop para **importar 2× XML + 1× TXT**, **cruzar os dados**, cal
 ---
 
 ## Visão geral
-Este projeto entrega um **aplicativo desktop para Windows** que realiza ingestão de **dois formatos XML** e **um TXT**, aplica **regras de cruzamento**, calcula **distâncias Haversine** (linha reta entre coordenadas) e exporta um **arquivo CSV consolidado**.  
+Este projeto entrega um **aplicativo desktop para Windows** que realiza ingestão de **dois formatos XML** e **um TXT**, aplica **regras de cruzamento**, calcula **distâncias por rota viária** (com fallback Haversine em caso de falha) e exporta um **arquivo Excel consolidado**.  
 O foco é **simplicidade operacional** e **confiabilidade** para equipes de negócio que precisam de dados padronizados.
 
-> **Observação:** cálculo por **rota viária** (trajeto real) não está incluído no escopo essencial e pode ser oferecido como opcional com integração a serviços de rotas.
+> **Observação:** a rota viária é obtida via OpenRouteService quando a chave estiver configurada; se a API falhar, a aplicação usa Haversine.
 
 ---
 
@@ -33,32 +33,34 @@ O foco é **simplicidade operacional** e **confiabilidade** para equipes de neg�
 - Importação de **2× XML** e **1× TXT**.
 - **Validações essenciais** (campos obrigatórios, registros inválidos, encoding).
 - **Cruzamento de dados** com base em chaves definidas a partir de amostras do cliente.
-- **Distância Haversine** calculada localmente (sem dependência de API externa).
-- **Exportação CSV** com cabeçalhos e formatação consistente.
+- **Rota viária (OpenRouteService)** com fallback **Haversine** local.
+- **Exportação Excel (XLSX)** com cabeçalhos e formatação consistente.
 - **Relatório de importação** (registros válidos/ignorados) para auditoria.
 - **Editor de Rotas**: Permite o ajuste manual de rotas incorretas, com recálculo automático da distância.
 
 ---
 
 ## Arquitetura (visão rápida)
-- **App (WPF/.NET 8)**: Interface desktop com fluxo simples (Selecionar arquivos → Processar → Exportar CSV).  
-- **Core/Parsers**: Leitura e normalização dos arquivos XML/TXT.  
-- **Core/Matching**: Regras de cruzamento (deduplicação, chaves, consistência).  
-- **Core/Geo**: Cálculo Haversine.  
-- **Core/Export**: Geração do CSV final.  
-- **samples/**: Arquivos de exemplo **anonimizados** para testes.
+- **App (WPF/.NET 8)**: Interface desktop com fluxo simples (Selecionar arquivos → Processar → Exportar XLSX).  
+- **Services**: Parsers (NFe/MDFe/SPED), merge, alocação de diesel, cálculo de rotas e geração de mapas.  
+- **Models**: DTOs e modelo de dados exibido/exportado.  
+- **Tools/SmokeRunner**: CLI para smoke test com uma pasta de arquivos.  
+- **Installer**: Projeto WiX para gerar MSI.
 
 ---
 
 ## Estrutura de pastas
 ```text
-/src
-  /App                # Projeto WPF (.NET 8) — UI e fluxo do usuário
-  /Core               # Domínio, serviços (parsers, matching, geo, export)
-  /Core.Tests         # Testes unitários do domínio
-/samples              # XML/TXT de exemplo (sanitizados)
-docs/                 # Manuais, diagramas, notas
-tools/                # Scripts auxiliares (opcional)
+/
+  CsvIntegratorApp.sln
+  CsvIntegratorApp.csproj
+  *.xaml / *.xaml.cs          # Janelas WPF
+  /Models                     # Modelos e DTOs
+  /Services                   # Parsers, merge, rotas, exportação
+  /Installer                  # WiX (.msi)
+  /Tools/SmokeRunner          # CLI de smoke test
+  modelo_para_exportar.xlsx   # Template do XLSX de saída
+  README.md
 ```
 
 ---
@@ -81,7 +83,7 @@ dotnet restore
 dotnet build
 
 # 3) Executar a aplicação (via IDE é o caminho mais simples)
-# Abra a solução no Visual Studio e rode o projeto 'App'
+# Abra a solução no Visual Studio e rode o projeto 'CsvIntegratorApp'
 ```
 
 ### Gerando um Executável para Distribuição
@@ -118,10 +120,9 @@ O instalador `.msi` será gerado na pasta `Installer/bin/Release/net8.0/`.
 ---
 
 ## Configuração
-- **Segredos não vão para o Git.** Use `appsettings.Development.json` para valores padrão e `appsettings.Local.json` (no .gitignore) para overrides locais.  
-- Se no futuro houver API/DB, mantenha **strings de conexão** apenas em arquivos locais e/ou variáveis de ambiente.
-
-> Mantenha uma pasta **`/samples/`** com amostras **sanitizadas** (sem dados sensíveis) para testes e CI.
+- **OpenRouteService (rotas):** defina `ORS_API_KEY` no ambiente **ou** crie `ors_api_key.txt` em `%LOCALAPPDATA%\CsvIntegratorApp` **ou** ao lado do executável.  
+- **Template XLSX:** mantenha `modelo_para_exportar.xlsx` junto ao executável (o build copia automaticamente).  
+- **Dados locais:** `vehicles.json`, `geocache.json` e `modelo.local.json` ficam em `%LOCALAPPDATA%\CsvIntegratorApp`.
 
 ---
 
@@ -129,13 +130,13 @@ O instalador `.msi` será gerado na pasta `Installer/bin/Release/net8.0/`.
 1. Abra o aplicativo.  
 2. Selecione os **3 arquivos** (2× XML + 1× TXT).  
 3. Execute o processamento; verifique o **resumo** (registros válidos/ignorados).  
-4. Exporte o **CSV consolidado** para a pasta desejada.  
+4. Exporte a **planilha Excel consolidada** para a pasta desejada.  
 5. Consulte o **relatório de importação** para auditoria.
 6. Se uma rota estiver incorreta, clique no botão **Ajustar Rota** na linha correspondente para abrir o editor de rotas e ajustar os endereços.
 
 ---
 
-## Especificação do CSV de saída
+## Especificação da planilha de saída
 A especificação exata de colunas será definida nas amostras acordadas com o cliente. Exemplo ilustrativo:
 
 | Coluna                   | Tipo     | Descrição                                    |
@@ -150,18 +151,18 @@ A especificação exata de colunas será definida nas amostras acordadas com o c
 | `categoria`              | string   | (Se aplicável) categoria/agrupador            |
 | `observacoes`            | string   | (Se aplicável) observações                     |
 
-> Separador padrão: `,` (ou `;` conforme regionalização). Formatos de número e data serão normalizados.
+> Formatos de número e data serão normalizados conforme o modelo.
 
 ---
 
 ## Qualidade e testes
-- Testes unitários em `Core.Tests` para parsers, matching e cálculo Haversine.  
+- Smoke test via `Tools/SmokeRunner` (processa uma pasta com TXT/XML).  
 - Logs gravados em arquivo local para facilitar suporte e auditoria.
 
 ---
 
 ## Roadmap (opcional)
-- Integração com **API de rotas viárias** (trajeto real + cache).  
+- Suporte a **outros provedores de rota** e cache avançado.  
 - **Base online + API de consulta** (somente leitura).  
 - Instalador **MSIX** com auto-update.  
 - Dashboard analítico (gráficos, filtros avançados).

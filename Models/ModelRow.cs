@@ -1,5 +1,8 @@
+using System;
+using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace CsvIntegratorApp.Models
 {
@@ -10,20 +13,24 @@ namespace CsvIntegratorApp.Models
         private string? _renavam;
         private string? _placa;
         private string? _mdfeNumero;
-        private string? _data;
+        private DateTime? _data;
         private double? _distanciaPercorridaKm;
         private string? _nFeNumero;
-        private string? _dataEmissao;
+        private DateTime? _dataEmissao;
         private string? _nFeCargaNumero;
-        private string? _dataEmissaoCarga;
+        private DateTime? _dataEmissaoCarga;
         private double? _quantidadeLitros;
         private double? _quantidadeUsadaLitros;
         private string? _especieCombustivel;
         private double? _valorUnitario;
         private double? _valorTotalCombustivel;
         private double? _valorCredito;
+        private double? _valorEstornoCredito;
+        private double? _valorCreditoLiquido;
+        private double? _valorEstornoCreditoSt;
+        private double? _valorCreditoLiquidoSt;
         private string? _nFeAquisicaoNumero;
-        private string? _dataAquisicao;
+        private DateTime? _dataAquisicao;
         private string? _vinculo;
 
         public bool IsInitialized { get; set; }
@@ -39,7 +46,8 @@ namespace CsvIntegratorApp.Models
 
         public string? MdfeNumero { get => _mdfeNumero; set { if (SetField(ref _mdfeNumero, value) && IsInitialized) { MdfeNumero_IsEdited = true; OnPropertyChanged(nameof(MdfeNumero_IsEdited)); } } }
         public bool MdfeNumero_IsEdited { get; private set; }
-        public string? Data { get => _data; set { if (SetField(ref _data, value) && IsInitialized) { Data_IsEdited = true; OnPropertyChanged(nameof(Data_IsEdited)); } } }
+        [JsonConverter(typeof(FlexibleDateConverter))]
+        public DateTime? Data { get => _data; set { if (SetField(ref _data, value) && IsInitialized) { Data_IsEdited = true; OnPropertyChanged(nameof(Data_IsEdited)); } } }
         public bool Data_IsEdited { get; private set; }
         public string? Roteiro { get; set; }
         public double? DistanciaPercorridaKm { get => _distanciaPercorridaKm; set { if (SetField(ref _distanciaPercorridaKm, value) && IsInitialized) { DistanciaPercorridaKm_IsEdited = true; OnPropertyChanged(nameof(DistanciaPercorridaKm_IsEdited)); } } }
@@ -47,11 +55,13 @@ namespace CsvIntegratorApp.Models
 
         public string? NFeNumero { get => _nFeNumero; set { if (SetField(ref _nFeNumero, value) && IsInitialized) { NFeNumero_IsEdited = true; OnPropertyChanged(nameof(NFeNumero_IsEdited)); } } }
         public bool NFeNumero_IsEdited { get; private set; }
-        public string? DataEmissao { get => _dataEmissao; set { if (SetField(ref _dataEmissao, value) && IsInitialized) { DataEmissao_IsEdited = true; OnPropertyChanged(nameof(DataEmissao_IsEdited)); } } }
+        [JsonConverter(typeof(FlexibleDateConverter))]
+        public DateTime? DataEmissao { get => _dataEmissao; set { if (SetField(ref _dataEmissao, value) && IsInitialized) { DataEmissao_IsEdited = true; OnPropertyChanged(nameof(DataEmissao_IsEdited)); } } }
         public bool DataEmissao_IsEdited { get; private set; }
         public string? NFeCargaNumero { get => _nFeCargaNumero; set { if (SetField(ref _nFeCargaNumero, value) && IsInitialized) { NFeCargaNumero_IsEdited = true; OnPropertyChanged(nameof(NFeCargaNumero_IsEdited)); } } }
         public bool NFeCargaNumero_IsEdited { get; private set; }
-        public string? DataEmissaoCarga { get => _dataEmissaoCarga; set { if (SetField(ref _dataEmissaoCarga, value) && IsInitialized) { DataEmissaoCarga_IsEdited = true; OnPropertyChanged(nameof(DataEmissaoCarga_IsEdited)); } } }
+        [JsonConverter(typeof(FlexibleDateConverter))]
+        public DateTime? DataEmissaoCarga { get => _dataEmissaoCarga; set { if (SetField(ref _dataEmissaoCarga, value) && IsInitialized) { DataEmissaoCarga_IsEdited = true; OnPropertyChanged(nameof(DataEmissaoCarga_IsEdited)); } } }
         public bool DataEmissaoCarga_IsEdited { get; private set; }
 
         public double? QuantidadeLitros { get => _quantidadeLitros; set { if (SetField(ref _quantidadeLitros, value) && IsInitialized) { QuantidadeLitros_IsEdited = true; OnPropertyChanged(nameof(QuantidadeLitros_IsEdited)); } } }
@@ -69,10 +79,17 @@ namespace CsvIntegratorApp.Models
         public double? AliquotaCredito { get; set; }
         public double? ValorCredito { get => _valorCredito; set { if (SetField(ref _valorCredito, value) && IsInitialized) { ValorCredito_IsEdited = true; OnPropertyChanged(nameof(ValorCredito_IsEdited)); } } }
         public bool ValorCredito_IsEdited { get; private set; }
+        public double? ValorEstornoCredito { get => _valorEstornoCredito; set => SetField(ref _valorEstornoCredito, value); }
+        public double? ValorCreditoLiquido { get => _valorCreditoLiquido; set => SetField(ref _valorCreditoLiquido, value); }
+        public double? PercentualCredito { get; set; }
+        public double? ValorEstornoCreditoSt { get => _valorEstornoCreditoSt; set => SetField(ref _valorEstornoCreditoSt, value); }
+        public double? ValorCreditoLiquidoSt { get => _valorCreditoLiquidoSt; set => SetField(ref _valorCreditoLiquidoSt, value); }
+        public double? PercentualCreditoSt { get; set; }
 
         public string? NFeAquisicaoNumero { get => _nFeAquisicaoNumero; set { if (SetField(ref _nFeAquisicaoNumero, value) && IsInitialized) { NFeAquisicaoNumero_IsEdited = true; OnPropertyChanged(nameof(NFeAquisicaoNumero_IsEdited)); } } }
         public bool NFeAquisicaoNumero_IsEdited { get; private set; }
-        public string? DataAquisicao { get => _dataAquisicao; set { if (SetField(ref _dataAquisicao, value) && IsInitialized) { DataAquisicao_IsEdited = true; OnPropertyChanged(nameof(DataAquisicao_IsEdited)); } } }
+        [JsonConverter(typeof(FlexibleDateConverter))]
+        public DateTime? DataAquisicao { get => _dataAquisicao; set { if (SetField(ref _dataAquisicao, value) && IsInitialized) { DataAquisicao_IsEdited = true; OnPropertyChanged(nameof(DataAquisicao_IsEdited)); } } }
         public bool DataAquisicao_IsEdited { get; private set; }
 
         public string? ChaveNFe { get; set; }
