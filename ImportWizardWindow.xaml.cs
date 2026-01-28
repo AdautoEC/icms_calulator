@@ -581,6 +581,19 @@ namespace CsvIntegratorApp
 
         private void PopulateNotaAquisicaoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
         {
+            var headerMergedRanges = worksheet.MergedRanges
+                .Where(r => r.RangeAddress.FirstAddress.RowNumber <= 7 && r.RangeAddress.LastAddress.RowNumber <= 7)
+                .ToList();
+            foreach (var range in headerMergedRanges)
+            {
+                range.Unmerge();
+            }
+
+            foreach (var range in new[] { "A6:L6", "D7:E7" })
+            {
+                worksheet.Range(range).Merge();
+            }
+
             var dieselRows = (_allNfeItems ?? new List<NfeParsedItem>())
                 .Where(FuelAllocator.IsDieselItem) // ANP 8201 ou descrição contendo "DIESEL"
                 .Select(i =>
