@@ -41,6 +41,7 @@ namespace CsvIntegratorApp.Services
             {
                 Path.Combine(appDir, "ors_api_key.txt"),
                 Path.Combine(AppContext.BaseDirectory, "ors_api_key.txt"),
+                Path.Combine(AppContext.BaseDirectory, "Models", "ORS_api_key.txt"),
                 Path.Combine(Directory.GetCurrentDirectory(), "ors_api_key.txt")
             };
 
@@ -55,7 +56,9 @@ namespace CsvIntegratorApp.Services
                 }
             }
 
-            return null;
+            // Fallback for existing hardcoded key to avoid breaking change
+            _apiKeyCache = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjA1Y2ZmNTZkOThjNzQ4ZDg5ZGNmNWNmMzhmOTBiNjQzIiwiaCI6Im11cm11cjY0In0=";
+            return _apiKeyCache;
         }
 
         private static OpenRouteServiceClient? GetClient()
