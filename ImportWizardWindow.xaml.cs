@@ -582,14 +582,20 @@ namespace CsvIntegratorApp
         private void PopulateNotaAquisicaoWorksheet(IXLWorksheet worksheet, List<ModelRow> rows)
         {
             var headerMergedRanges = worksheet.MergedRanges
-                .Where(r => r.RangeAddress.FirstAddress.RowNumber <= 7 && r.RangeAddress.LastAddress.RowNumber <= 7)
+                .Where(r => r.RangeAddress.FirstAddress.RowNumber <= 8 && r.RangeAddress.LastAddress.RowNumber <= 8)
                 .ToList();
             foreach (var range in headerMergedRanges)
             {
                 range.Unmerge();
             }
 
-            foreach (var range in new[] { "A6:L6", "D7:E7" })
+            foreach (var range in new[]
+            {
+                "A6:L6", "D7:E7",
+                "A7:A8", "B7:B8", "C7:C8",
+                "F7:F8", "G7:G8", "H7:H8",
+                "I7:I8", "J7:J8", "K7:K8", "L7:L8"
+            })
             {
                 worksheet.Range(range).Merge();
             }

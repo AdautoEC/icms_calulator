@@ -3,4 +3,11 @@
     <PackageFile Include="Product.wxs" />
     <ProjectReference Include="..\CsvIntegratorApp.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <HarvestDirectory Include="..\publish">
+      <ComponentGroupName>PublishComponents</ComponentGroupName>
+      <DirectoryRefId>INSTALLFOLDER</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+    </HarvestDirectory>
+  </ItemGroup>
 </Project>

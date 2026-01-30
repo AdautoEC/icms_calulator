@@ -11,21 +11,34 @@
     <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="ProductFeature" Title="Integrador ICMS SPED" Level="1">
-      <ComponentGroupRef Id="ProductComponents" />
+      <ComponentGroupRef Id="PublishComponents" />
+      <ComponentRef Id="AppShortcut" />
     </Feature>
   </Package>
 
   <Fragment>
-    <Directory Id="ProgramFilesFolder">
+    <StandardDirectory Id="ProgramFilesFolder">
       <Directory Id="INSTALLFOLDER" Name="Integrador ICMS SPED" />
-    </Directory>
+    </StandardDirectory>
   </Fragment>
 
   <Fragment>
-    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-      <Component Id="CsvIntegratorAppExe" Guid="*">
-        <File Source="$(var.CsvIntegratorApp.TargetPath)" />
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ProgramMenuDir" Name="Integrador ICMS SPED" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <DirectoryRef Id="ProgramMenuDir">
+      <Component Id="AppShortcut" Guid="*">
+        <Shortcut
+          Id="StartMenuShortcut"
+          Name="Integrador ICMS SPED"
+          Target="[INSTALLFOLDER]CsvIntegratorApp.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="ProgramMenuDirCleanup" Directory="ProgramMenuDir" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\Integrador ICMS SPED" Name="installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
-    </ComponentGroup>
+    </DirectoryRef>
   </Fragment>
 </Wix>
